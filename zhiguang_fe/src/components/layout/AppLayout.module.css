@@ -1,0 +1,37 @@
+.container {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 24px 80px;
+  min-height: 100vh;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pageCard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  border: 1px solid var(--color-border);
+}
+
+@media (max-width: 900px) {
+  .container {
+    padding: 16px 16px 80px;
+    gap: 12px;
+  }
+  .pageCard {
+    padding: 16px;
+    border-radius: var(--radius-md);
+  }
+}
