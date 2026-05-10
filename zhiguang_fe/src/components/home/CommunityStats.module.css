@@ -1,0 +1,22 @@
+.wrap {
+  display: flex;
+  gap: 24px;
+  padding: 12px 0;
+}
+
+.item {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-strong);
+}
+
+.label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
