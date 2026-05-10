@@ -1,0 +1,28 @@
+.topBar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0;
+}
+
+.feedSection {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: 20px;
+}
+
+.masonry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.masonryItem {
+  animation: fadeInUp 0.3s ease-out both;
+}
+
+@media (max-width: 700px) {
+  .feedSection {
+    padding: 12px;
+  }
+}
