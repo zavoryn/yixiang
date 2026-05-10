@@ -1,0 +1,80 @@
+.wrapper {
+  position: relative;
+}
+
+.box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  background: var(--color-surface);
+  font-size: 14px;
+  color: var(--color-text-strong);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.box:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary-light);
+}
+
+.value {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arrow {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--color-text-muted);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  max-height: 240px;
+  overflow: auto;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  z-index: 20;
+}
+
+.option {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.option:hover,
+.optionActive {
+  background: var(--color-surface-soft);
+  color: var(--color-text-strong);
+}
+
+.optionSelected {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-strong);
+}
