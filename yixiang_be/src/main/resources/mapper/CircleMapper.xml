@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.circle.mapper.CircleMapper">
+
+    <insert id="insert">
+        INSERT INTO circles (id, name, description, avatar_url, owner_id, visibility, status, category, member_count, post_count, created_at)
+        VALUES (#{id}, #{name}, #{description}, #{avatarUrl}, #{ownerId}, #{visibility}, #{status}, #{category}, #{memberCount}, #{postCount}, NOW(3))
+    </insert>
+
+    <select id="findById" resultType="com.tongji.circle.model.Circle">
+        SELECT id, name, description, avatar_url AS avatarUrl, owner_id AS ownerId,
+               visibility, status, category, member_count AS memberCount,
+               post_count AS postCount, created_at AS createdAt
+        FROM circles WHERE id = #{id} AND status = 'ACTIVE'
+    </select>
+
+    <update id="update">
+        UPDATE circles
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="avatarUrl != null">avatar_url = #{avatarUrl},</if>
+            <if test="category != null">category = #{category},</if>
+            <if test="visibility != null">visibility = #{visibility},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="list" resultType="com.tongji.circle.model.Circle">
+        SELECT id, name, description, avatar_url AS avatarUrl, owner_id AS ownerId,
+               visibility, status, category, member_count AS memberCount,
+               post_count AS postCount, created_at AS createdAt
+        FROM circles
+        WHERE status = 'ACTIVE'
+        <if test="category != null and category != ''">AND category = #{category}</if>
+        <if test="keyword != null and keyword != ''">AND name LIKE CONCAT('%', #{keyword}, '%')</if>
+        ORDER BY member_count DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(1) FROM circles
+        WHERE status = 'ACTIVE'
+        <if test="category != null and category != ''">AND category = #{category}</if>
+        <if test="keyword != null and keyword != ''">AND name LIKE CONCAT('%', #{keyword}, '%')</if>
+    </select>
+
+    <select id="listJoined" resultType="com.tongji.circle.model.Circle">
+        SELECT c.id, c.name, c.description, c.avatar_url AS avatarUrl, c.owner_id AS ownerId,
+               c.visibility, c.status, c.category, c.member_count AS memberCount,
+               c.post_count AS postCount, c.created_at AS createdAt
+        FROM circles c
+        JOIN circle_members cm ON cm.circle_id = c.id AND cm.user_id = #{userId} AND cm.status = 'ACTIVE'
+        WHERE c.status = 'ACTIVE'
+        ORDER BY cm.joined_at DESC
+    </select>
+
+    <update id="incrementMemberCount">
+        UPDATE circles SET member_count = member_count + #{delta} WHERE id = #{id}
+    </update>
+
+    <update id="incrementPostCount">
+        UPDATE circles SET post_count = post_count + #{delta} WHERE id = #{id}
+    </update>
+
+</mapper>

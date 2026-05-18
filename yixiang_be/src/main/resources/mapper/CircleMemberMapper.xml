@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.circle.mapper.CircleMemberMapper">
+
+    <insert id="insert">
+        INSERT INTO circle_members (id, circle_id, user_id, role, status, joined_at)
+        VALUES (#{id}, #{circleId}, #{userId}, #{role}, #{status}, NOW(3))
+        ON DUPLICATE KEY UPDATE status = VALUES(status), joined_at = NOW(3)
+    </insert>
+
+    <select id="findByCircleAndUser" resultType="com.tongji.circle.model.CircleMember">
+        SELECT id, circle_id AS circleId, user_id AS userId, role, status, joined_at AS joinedAt
+        FROM circle_members WHERE circle_id = #{circleId} AND user_id = #{userId}
+    </select>
+
+    <select id="listActiveMembers" resultType="com.tongji.circle.model.CircleMember">
+        SELECT id, circle_id AS circleId, user_id AS userId, role, status, joined_at AS joinedAt
+        FROM circle_members
+        WHERE circle_id = #{circleId} AND status = 'ACTIVE'
+        ORDER BY role = 'OWNER' DESC, role = 'ADMIN' DESC, joined_at ASC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE circle_members SET status = #{status}
+        WHERE circle_id = #{circleId} AND user_id = #{userId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM circle_members WHERE circle_id = #{circleId} AND user_id = #{userId}
+    </delete>
+
+    <select id="countActive" resultType="int">
+        SELECT COUNT(1) FROM circle_members WHERE circle_id = #{circleId} AND status = 'ACTIVE'
+    </select>
+
+</mapper>
