@@ -1,23 +1,24 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FileText, Lock } from 'lucide-react';
 import { circleService } from '@/services/circleService';
 import type { CircleSummary } from '@/types/circle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import PageShell from '@/components/layout/PageShell';
+import MyCirclesList from '@/components/widgets/MyCirclesList';
+import CircleRecommend from '@/components/widgets/CircleRecommend';
 import { useAuth } from '@/context/AuthContext';
+import { Users, FileText, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CATEGORIES = [
-  { label: '全部', value: '' },
-  { label: '投资', value: '投资' },
+  { label: '推荐', value: '' },
   { label: '科技', value: '科技' },
   { label: '价值', value: '价值' },
-  { label: '宏观', value: '宏观' },
+  { label: '投资', value: '投资' },
   { label: '行业', value: '行业' },
+  { label: '宏观', value: '宏观' },
 ];
-
-const PAGE_SIZE = 12;
 
 export default function CircleSquarePage() {
   const { tokens } = useAuth();
@@ -32,19 +33,14 @@ export default function CircleSquarePage() {
   const load = useCallback(async (cat: string, pg: number) => {
     setLoading(true);
     try {
-      const res = await circleService.list({ category: cat || undefined, page: pg, size: PAGE_SIZE });
+      const res = await circleService.list({ category: cat || undefined, page: pg, size: 10 });
       setCircles(pg === 0 ? res.items : prev => [...prev, ...res.items]);
       setTotal(res.total);
       setPage(pg);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    load(category, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category]);
+  useEffect(() => { load(category, 0); }, [category]);
 
   const handleJoin = async (e: React.MouseEvent, circle: CircleSummary) => {
     e.stopPropagation();
@@ -54,112 +50,87 @@ export default function CircleSquarePage() {
     try {
       await circleService.join(circle.id);
       setCircles(prev => prev.map(c => c.id === circle.id ? { ...c, joined: true, memberCount: c.memberCount + 1 } : c));
-      toast.success(circle.visibility === 'PRIVATE' ? '申请已提交，等待审核' : '成功加入圈子');
+      toast.success(circle.visibility === 'PRIVATE' ? '申请已提交' : '加入成功');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : '操作失败');
-    } finally {
-      setJoiningId(null);
-    }
+    } finally { setJoiningId(null); }
   };
 
   const hasMore = circles.length < total;
 
   return (
-    <div className="max-w-4xl mx-auto py-6 px-4">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold">发现圈子</h1>
-        {tokens && (
-          <Button size="sm" onClick={() => navigate('/circles/create')}>
-            创建圈子
-          </Button>
-        )}
+    <PageShell rightSidebar={<><MyCirclesList /><CircleRecommend /></>}>
+      <div className="card-base overflow-hidden mb-3">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h1 className="text-base font-semibold">圈子广场</h1>
+          {tokens && (
+            <Button size="sm" className="rounded-full text-xs h-7 px-3" onClick={() => navigate('/create')}>
+              + 发布到圈子
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-0 px-2 py-1.5 overflow-x-auto">
+          {CATEGORIES.map(c => (
+            <button
+              key={c.value}
+              onClick={() => setCategory(c.value)}
+              className={`px-4 py-1.5 text-sm font-medium rounded-full whitespace-nowrap transition-colors mx-0.5 ${
+                category === c.value ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Category tabs */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {CATEGORIES.map(c => (
-          <button
-            key={c.value}
-            onClick={() => setCategory(c.value)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              category === c.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Circle grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="space-y-2">
         {circles.map(circle => (
           <div
             key={circle.id}
+            className="card-base p-4 flex items-center gap-4 cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all"
             onClick={() => navigate(`/circles/${circle.id}`)}
-            className="bg-card rounded-xl border border-border p-4 cursor-pointer hover:border-primary/40 hover:shadow-sm transition-all"
           >
-            <div className="flex items-start gap-3 mb-3">
-              <Avatar className="h-12 w-12 shrink-0">
-                <AvatarImage src={circle.avatarUrl ?? undefined} />
-                <AvatarFallback className="text-base bg-primary/10 text-primary">
-                  {circle.name[0]}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-sm truncate">{circle.name}</span>
-                  {circle.visibility === 'PRIVATE' && (
-                    <Lock className="w-3 h-3 text-muted-foreground shrink-0" />
-                  )}
-                </div>
+            <Avatar className="w-14 h-14 shrink-0">
+              <AvatarImage src={circle.avatarUrl ?? undefined} />
+              <AvatarFallback className="text-xl bg-primary/10 text-primary font-bold">{circle.name[0]}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="font-semibold text-[15px] text-foreground">{circle.name}</span>
+                {circle.visibility === 'PRIVATE' && <Lock className="w-3.5 h-3.5 text-muted-foreground" />}
                 {circle.category && (
-                  <span className="text-xs text-muted-foreground">{circle.category}</span>
+                  <span className="text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded-md">{circle.category}</span>
                 )}
               </div>
-            </div>
-
-            {circle.description && (
-              <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{circle.description}</p>
-            )}
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Users className="w-3 h-3" />
-                  {circle.memberCount}
-                </span>
-                <span className="flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  {circle.postCount}
-                </span>
+              {circle.description && (
+                <p className="text-sm text-muted-foreground line-clamp-1 mb-1.5">{circle.description}</p>
+              )}
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" />{circle.memberCount} 成员</span>
+                <span className="flex items-center gap-1"><FileText className="w-3 h-3" />{circle.postCount} 帖子</span>
               </div>
-              <Button
-                size="sm"
-                variant={circle.joined ? 'outline' : 'default'}
-                className="h-7 text-xs px-3"
-                disabled={joiningId === circle.id}
-                onClick={e => handleJoin(e, circle)}
-              >
-                {circle.joined ? '已加入' : circle.visibility === 'PRIVATE' ? '申请加入' : '加入'}
-              </Button>
             </div>
+            <Button
+              size="sm"
+              variant={circle.joined ? 'outline' : 'default'}
+              className="shrink-0 rounded-full px-4 h-8 text-sm"
+              disabled={joiningId === circle.id}
+              onClick={e => handleJoin(e, circle)}
+            >
+              {circle.joined ? '已加入' : circle.visibility === 'PRIVATE' ? '申请' : '加入'}
+            </Button>
           </div>
         ))}
-      </div>
-
-      {circles.length === 0 && !loading && (
-        <p className="text-center text-muted-foreground py-16">暂无圈子</p>
-      )}
-
-      {hasMore && (
-        <div className="mt-6 text-center">
-          <Button variant="ghost" onClick={() => load(category, page + 1)} disabled={loading}>
+        {circles.length === 0 && !loading && (
+          <div className="card-base p-12 text-center text-muted-foreground">暂无圈子</div>
+        )}
+        {hasMore && (
+          <Button variant="ghost" className="w-full card-base rounded-xl" onClick={() => load(category, page + 1)} disabled={loading}>
             {loading ? '加载中…' : '加载更多'}
           </Button>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </PageShell>
   );
 }
