@@ -183,6 +183,5 @@
         WHERE id = #{postId} AND circle_id = #{circleId}
     </update>
 
-    <if test="false"><!-- updateMetadata circle_id support added inline above --></if>
 
 </mapper>

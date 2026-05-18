@@ -24,7 +24,7 @@ export default function CircleSquarePage() {
   const navigate = useNavigate();
   const [category, setCategory] = useState('');
   const [circles, setCircles] = useState<CircleSummary[]>([]);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [joiningId, setJoiningId] = useState<number | null>(null);
@@ -33,7 +33,7 @@ export default function CircleSquarePage() {
     setLoading(true);
     try {
       const res = await circleService.list({ category: cat || undefined, page: pg, size: PAGE_SIZE });
-      setCircles(pg === 1 ? res.items : prev => [...prev, ...res.items]);
+      setCircles(pg === 0 ? res.items : prev => [...prev, ...res.items]);
       setTotal(res.total);
       setPage(pg);
     } finally {
@@ -42,7 +42,7 @@ export default function CircleSquarePage() {
   }, []);
 
   useEffect(() => {
-    load(category, 1);
+    load(category, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
 
