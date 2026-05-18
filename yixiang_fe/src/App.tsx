@@ -14,6 +14,8 @@ import LearningPage from "@/pages/LearningPage";
 import FollowListPage from "@/pages/FollowListPage";
 import NotificationPage from "@/pages/NotificationPage";
 import CollectionsPage from "@/pages/CollectionsPage";
+import CircleSquarePage from "@/pages/CircleSquarePage";
+import CircleDetailPage from "@/pages/CircleDetailPage";
 
 export default function App() {
   return (
@@ -36,6 +38,8 @@ export default function App() {
           <Route path="follows" element={<FollowListPage />} />
           <Route path="notifications" element={<NotificationPage />} />
           <Route path="collections" element={<CollectionsPage />} />
+          <Route path="circles" element={<CircleSquarePage />} />
+          <Route path="circles/:id" element={<CircleDetailPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
