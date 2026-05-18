@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Heart, Bookmark, MessageCircle, Share2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { FeedItem } from '@/types/knowpost';
@@ -39,11 +39,13 @@ export default function FeedCard({ post, onLike, onFav }: Props) {
                 {post.authorNickname?.charAt(0) || 'U'}
               </AvatarFallback>
             </Avatar>
-            <span
-              className="text-sm font-medium text-foreground"
+            <Link
+              to={`/user/${post.authorId || ''}`}
+              className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+              onClick={e => e.stopPropagation()}
             >
               {post.authorNickname}
-            </span>
+            </Link>
             {tags[0] && (
               <span className="text-xs text-[#ff8c00] bg-[#fff7e6] border border-[#ffd591] px-1.5 py-0.5 rounded-md">
                 {tags[0]}

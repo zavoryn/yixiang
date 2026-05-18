@@ -46,6 +46,7 @@ export type FeedItem = {
   tagJson?: string;
   authorAvatar?: string;
   authorNickname: string;
+  authorId?: string;
   likeCount?: number;
   favoriteCount?: number;
   commentCount?: number;
