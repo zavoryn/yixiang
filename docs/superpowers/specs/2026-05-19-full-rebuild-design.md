@@ -440,9 +440,12 @@ P3 完成:
 
 ---
 
-## 附录:与现有文档的关系
+## 附录:与历史文档的关系
 
-- `docs/superpowers/specs/2026-05-18-feature-completion-design.md` — 上一轮的功能完善设计,部分前端工作并入本设计的 P2,部分后端工作(notification / favorite / circle)已实施且保留
-- `docs/superpowers/plans/2026-05-18-ui-redesign.md` — 上一轮 UI 重设计计划,本设计废弃之
-- `docs/superpowers/plans/2026-05-18-phase-{0,1,2,3}-*.md` — 后端 phase 0/1/2/3 计划,Phase 0/1/2/3 已基本实施(commits c912efd / 134ccf7 / 9f71ed8 / 3e65f4c),本设计在其基础上继续加 6 个新模块
-- `CLAUDE.md` — 项目级 readme,本设计完成后需更新模块表
+之前的 `2026-05-18-*` 系列 spec 与 plan 已全部删除,以本 spec 为唯一来源。它们的历史价值:
+
+- **后端已实施部分** — notification / favorite / circle 三个模块已通过 commits `c912efd / 134ccf7 / 9f71ed8 / 3e65f4c` 落地,本 spec 在其基础上**继续加** 6 个新模块,不重做
+- **前端已迭代部分** — 上一轮 UI 重设计的若干 layout / widget / FeedCard 实现思路已沉淀到 `原型设计图/`(视觉契约源),本 spec 选择推倒重来,代码不直接复用,但视觉决策已固化在原型里
+- 完整历史可查 `git log --oneline -- docs/superpowers/`
+
+`CLAUDE.md` — 项目级 readme,本设计完成后需更新模块表。
