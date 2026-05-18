@@ -164,10 +164,10 @@ export default function CircleDetailPage() {
 
       {(tab === '首页' || tab === '帖子' || tab === '精华') && (
         <div className="space-y-2">
-          {posts.map(post => {
+          {posts.map((post, idx) => {
             const postId = String(post.id ?? '');
             return (
-              <div key={postId} className="card-base p-4 hover:shadow-sm transition-shadow cursor-pointer" onClick={() => navigate(`/post/${postId}`)}>
+              <div key={`${postId}-${idx}`} className="card-base p-4 hover:shadow-sm transition-shadow cursor-pointer" onClick={() => navigate(`/post/${postId}`)}>
                 <h3 className="text-[15px] font-semibold text-foreground line-clamp-2 mb-1">{String(post.title ?? '')}</h3>
                 {String(post.description ?? '') && <p className="text-sm text-muted-foreground line-clamp-2">{String(post.description)}</p>}
               </div>

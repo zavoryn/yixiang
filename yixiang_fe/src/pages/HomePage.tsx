@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { knowpostService } from '@/services/knowpostService';
 import type { FeedItem } from '@/types/knowpost';
+import { enrichFeedItems } from '@/mock/enrichData';
 import FeedCard from '@/components/post/FeedCard';
 import PageShell from '@/components/layout/PageShell';
 import MyStats from '@/components/widgets/MyStats';
@@ -31,7 +32,8 @@ export default function HomePage() {
     setLoading(true);
     try {
       const res = await knowpostService.feed(p, 15);
-      setPosts(prev => p === 1 ? res.items : [...prev, ...res.items]);
+      const items = enrichFeedItems(res.items);
+      setPosts(prev => p === 1 ? items : [...prev, ...items]);
       setHasMore(res.hasMore);
       setPage(p);
     } catch {}

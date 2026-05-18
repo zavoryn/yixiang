@@ -8,7 +8,14 @@ import { Button } from '@/components/ui/button';
 import PageShell from '@/components/layout/PageShell';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { CheckCheck } from 'lucide-react';
+import { CheckCheck, Heart, MessageCircle, UserPlus, Bell, ThumbsUp } from 'lucide-react';
+
+const TYPE_META: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; bg: string }> = {
+  LIKE:    { icon: ThumbsUp,      color: 'text-blue-500',    bg: 'bg-blue-50' },
+  COMMENT: { icon: MessageCircle, color: 'text-green-500',   bg: 'bg-green-50' },
+  FOLLOW:  { icon: UserPlus,      color: 'text-purple-500',  bg: 'bg-purple-50' },
+  SYSTEM:  { icon: Bell,          color: 'text-gray-400',    bg: 'bg-gray-50' },
+};
 
 const TABS = [
   { label: '全部',   value: '' },
@@ -81,18 +88,26 @@ export default function NotificationPage() {
         </div>
 
         <div className="divide-y divide-border">
-          {items.map(item => (
+          {items.map(item => {
+            const meta = TYPE_META[item.type] || TYPE_META.SYSTEM;
+            const TypeIcon = meta.icon;
+            return (
             <div
               key={item.id}
               className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors ${!item.isRead ? 'bg-blue-50/50' : ''}`}
               onClick={() => item.entityId && navigate(`/post/${item.entityId}`)}
             >
-              {!item.isRead && <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2.5 shrink-0" />}
-              <Avatar className="w-10 h-10 shrink-0">
-                <AvatarImage src={item.actorAvatar ?? undefined} />
-                <AvatarFallback className="text-xs">{item.actorNickname?.[0] ?? '系'}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
+              <div className="relative shrink-0">
+                {!item.isRead && <div className="absolute -left-1 top-1 w-2 h-2 rounded-full bg-blue-500 z-10" />}
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={item.actorAvatar ?? undefined} />
+                  <AvatarFallback className="text-xs">{item.actorNickname?.[0] ?? '系'}</AvatarFallback>
+                </Avatar>
+                <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${meta.bg} flex items-center justify-center ring-2 ring-white`}>
+                  <TypeIcon className={`w-3 h-3 ${meta.color}`} />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 pt-0.5">
                 <p className="text-sm">
                   <span className="font-medium">{item.actorNickname ?? '系统'}</span>
                   {' '}<span className="text-muted-foreground">{item.content}</span>
@@ -102,7 +117,8 @@ export default function NotificationPage() {
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
           {items.length === 0 && !loading && (
             <div className="p-12 text-center text-muted-foreground text-sm">暂无通知</div>
           )}

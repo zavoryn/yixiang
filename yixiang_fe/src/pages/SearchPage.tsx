@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { searchService } from '@/services/searchService';
 import FeedCard from '@/components/post/FeedCard';
+import { enrichFeedItems } from '@/mock/enrichData';
 import PageShell from '@/components/layout/PageShell';
 import CircleRecommend from '@/components/widgets/CircleRecommend';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Search, X, TrendingUp } from 'lucide-react';
 import type { FeedItem } from '@/types/knowpost';
 
-const TABS = ['帖子', '用户', '话题'] as const;
+const TABS = ['综合', '帖子', '用户', '圈子'] as const;
 type Tab = (typeof TABS)[number];
 const HOT_SEARCHES = ['A股大盘走势', '量化交易策略', '价值投资选股', '可转债套利', 'ETF定投'];
 
@@ -30,7 +31,7 @@ export default function SearchPage() {
     setLoading(true);
     try {
       const res = await searchService.query({ q: q.trim(), size: 20 });
-      setPostResults(res.items || []);
+      setPostResults(enrichFeedItems(res.items || []));
     } catch {} finally { setLoading(false); }
   }, []);
 

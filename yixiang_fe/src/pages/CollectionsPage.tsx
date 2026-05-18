@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { favoriteService } from '@/services/favoriteService';
 import type { FeedItem } from '@/types/knowpost';
+import { enrichFeedItems } from '@/mock/enrichData';
 import FeedCard from '@/components/post/FeedCard';
 import PageShell from '@/components/layout/PageShell';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,8 @@ export default function CollectionsPage() {
     setLoading(true);
     try {
       const res = await favoriteService.list(reset ? undefined : (cursor ?? undefined));
-      setItems(prev => reset ? res.items : [...prev, ...res.items]);
+      const items = enrichFeedItems(res.items);
+      setItems(prev => reset ? items : [...prev, ...items]);
       setCursor(res.nextCursor);
       setHasMore(res.hasMore);
     } finally { setLoading(false); }

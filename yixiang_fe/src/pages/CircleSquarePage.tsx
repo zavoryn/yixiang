@@ -61,8 +61,9 @@ export default function CircleSquarePage() {
   return (
     <PageShell rightSidebar={<><MyCirclesList /><CircleRecommend /></>}>
       <div className="card-base overflow-hidden mb-3">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h1 className="text-base font-semibold">圈子广场</h1>
+        <div className="px-4 py-3 border-b border-border">
+          <h1 className="text-lg font-bold text-foreground">知识圈</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">发现感兴趣的圈子，加入共同成长</p>
           {tokens && (
             <Button size="sm" className="rounded-full text-xs h-7 px-3" onClick={() => navigate('/create')}>
               + 发布到圈子

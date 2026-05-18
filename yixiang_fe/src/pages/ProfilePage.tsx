@@ -8,6 +8,7 @@ import type { RelationCountersResponse } from '@/types/relation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import FeedCard from '@/components/post/FeedCard';
+import { enrichFeedItems } from '@/mock/enrichData';
 import PageShell from '@/components/layout/PageShell';
 import HotTopics from '@/components/widgets/HotTopics';
 import { Edit2, MapPin, Verified } from 'lucide-react';
@@ -43,7 +44,7 @@ export default function ProfilePage() {
       relationService.counters(Number(targetId), tokens.accessToken)
     ])
       .then(([feedRes, counterRes]) => {
-        setPosts(feedRes.items || []);
+        setPosts(enrichFeedItems(feedRes.items || []));
         setCounters(counterRes);
       })
       .catch(() => {})
