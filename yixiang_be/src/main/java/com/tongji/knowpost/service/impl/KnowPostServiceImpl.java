@@ -1,6 +1,7 @@
 package com.tongji.knowpost.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.tongji.counter.recent.RecentLikersService;
 import com.tongji.counter.service.UserCounterService;
 import com.tongji.knowpost.service.KnowPostService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,6 +18,7 @@ import com.tongji.counter.service.CounterService;
 import com.tongji.storage.config.OssProperties;
 import com.tongji.llm.rag.RagIndexService;
 import com.tongji.relation.outbox.OutboxMapper;
+import com.tongji.user.api.dto.UserBrief;
 import org.springframework.lang.Nullable;
 import com.tongji.cache.hotkey.HotKeyDetector;
 import jakarta.annotation.Resource;
@@ -54,6 +56,7 @@ public class KnowPostServiceImpl implements KnowPostService {
     private final ConcurrentHashMap<String, Object> singleFlight = new ConcurrentHashMap<>();
     private final RagIndexService ragIndexService;
     private final OutboxMapper outboxMapper;
+    private final RecentLikersService recentLikersService;
 
     // 手动编写构造器，Spring的@Qualifier直接标注在参数上（核心）
     public KnowPostServiceImpl(
@@ -67,7 +70,8 @@ public class KnowPostServiceImpl implements KnowPostService {
             @Qualifier("knowPostDetailCache") Cache<String, KnowPostDetailResponse> knowPostDetailCache,
             HotKeyDetector hotKey,
             @Nullable RagIndexService ragIndexService,
-            OutboxMapper outboxMapper
+            OutboxMapper outboxMapper,
+            RecentLikersService recentLikersService
     ) {
         this.mapper = mapper;
         this.idGen = idGen;
@@ -80,6 +84,7 @@ public class KnowPostServiceImpl implements KnowPostService {
         this.hotKey = hotKey;
         this.ragIndexService = ragIndexService;
         this.outboxMapper = outboxMapper;
+        this.recentLikersService = recentLikersService;
     }
     /**
      * 创建草稿并返回新 ID。
@@ -392,6 +397,9 @@ public class KnowPostServiceImpl implements KnowPostService {
             Long favoriteCount = counts.getOrDefault("fav", 0L);
             Long commentCount = counts.getOrDefault("comment", 0L);
 
+            List<UserBrief> recentLikers = recentLikersService.top5(row.getId());
+            String likerSummary = recentLikersService.summary(recentLikers, likeCount);
+
             resp = new KnowPostDetailResponse(
                     String.valueOf(row.getId()),
                     row.getTitle(),
@@ -411,7 +419,9 @@ public class KnowPostServiceImpl implements KnowPostService {
                     row.getIsTop(),
                     row.getVisible(),
                     row.getType(),
-                    row.getPublishTime()
+                    row.getPublishTime(),
+                    recentLikers,
+                    likerSummary
             );
 
             // 9. 写入 Redis 缓存
@@ -527,7 +537,9 @@ public class KnowPostServiceImpl implements KnowPostService {
                 base.isTop(),
                 base.visible(),
                 base.type(),
-                base.publishTime()
+                base.publishTime(),
+                base.recentLikers(),
+                base.likerSummary()
         );
     }
 
