@@ -7,6 +7,7 @@ import com.tongji.circle.model.Circle;
 import com.tongji.circle.model.CircleMember;
 import com.tongji.common.exception.BusinessException;
 import com.tongji.knowpost.mapper.KnowPostMapper;
+import com.tongji.activity.service.ActivityService;
 import com.tongji.user.service.UserService;
 import org.junit.jupiter.api.Test;
 
@@ -22,8 +23,9 @@ class CircleServiceImplTest {
     private final CircleMemberMapper memberMapper = mock(CircleMemberMapper.class);
     private final UserService userService = mock(UserService.class);
     private final KnowPostMapper knowPostMapper = mock(KnowPostMapper.class);
+    private final ActivityService activityService = mock(ActivityService.class);
     private final CircleServiceImpl service =
-            new CircleServiceImpl(circleMapper, memberMapper, userService, knowPostMapper);
+            new CircleServiceImpl(circleMapper, memberMapper, userService, knowPostMapper, activityService);
 
     @Test
     void createCircleInsertsCircleAndOwnerMember() {
