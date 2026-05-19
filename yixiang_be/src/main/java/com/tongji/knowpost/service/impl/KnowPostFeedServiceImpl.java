@@ -8,6 +8,8 @@ import com.tongji.knowpost.api.dto.FeedPageResponse;
 import com.tongji.knowpost.mapper.KnowPostMapper;
 import com.tongji.knowpost.model.KnowPostFeedRow;
 import com.tongji.counter.service.CounterService;
+import com.tongji.counter.recent.RecentLikersService;
+import com.tongji.user.api.dto.UserBrief;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.tongji.cache.hotkey.HotKeyDetector;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,6 +34,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
     private final CounterService counterService;
+    private final RecentLikersService recentLikersService;
     private final Cache<String, FeedPageResponse> feedPublicCache;
     private final Cache<String, FeedPageResponse> feedMineCache;
     private final HotKeyDetector hotKey;
@@ -55,6 +58,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             StringRedisTemplate redis,
             ObjectMapper objectMapper,
             CounterService counterService,
+            RecentLikersService recentLikersService,
             @Qualifier("feedPublicCache") Cache<String, FeedPageResponse> feedPublicCache,
             @Qualifier("feedMineCache") Cache<String, FeedPageResponse> feedMineCache,
             HotKeyDetector hotKey
@@ -63,6 +67,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         this.redis = redis;
         this.objectMapper = objectMapper;
         this.counterService = counterService;
+        this.recentLikersService = recentLikersService;
         this.feedPublicCache = feedPublicCache;
         this.feedMineCache = feedMineCache;
         this.hotKey = hotKey;
@@ -280,6 +285,16 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             }
         }
 
+        List<Long> postIdsLong = new ArrayList<>(idList.size());
+        for (FeedItemResponse base : items) {
+            if (base != null) {
+                try {
+                    postIdsLong.add(Long.parseLong(base.id()));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+        Map<Long, List<UserBrief>> likersByPost = recentLikersService.top5Batch(postIdsLong);
+
         List<FeedItemResponse> enriched = new ArrayList<>(idList.size());
         for (int i = 0; i < idList.size(); i++) {
             FeedItemResponse base = items.get(i);
@@ -296,6 +311,14 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             boolean liked = uid != null && counterService.isLiked("knowpost", base.id(), uid);
             boolean faved = uid != null && counterService.isFaved("knowpost", base.id(), uid);
 
+            List<UserBrief> recentLikers;
+            try {
+                recentLikers = likersByPost.getOrDefault(Long.parseLong(base.id()), List.of());
+            } catch (NumberFormatException e) {
+                recentLikers = List.of();
+            }
+            String likerSummary = recentLikersService.summary(recentLikers, likeCount);
+
             enriched.add(new FeedItemResponse(
                     base.id(),
                     base.title(),
@@ -311,7 +334,9 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
                     liked,
                     faved,
                     base.isTop(),
-                    List.of(), ""  ));
+                    recentLikers,
+                    likerSummary
+            ));
         }
         // hasMore 优先使用软缓存值；若缺失，则以"满页"作为兜底判断
         boolean hasMore = hasMoreStr != null ? "1".equals(hasMoreStr) : (idList.size() == size);
@@ -467,6 +492,12 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
     private List<FeedItemResponse> mapRowsToItems(List<KnowPostFeedRow> rows, Long userIdNullable, boolean includeIsTop) {
         List<FeedItemResponse> items = new ArrayList<>(rows.size());
 
+        List<Long> postIds = new ArrayList<>(rows.size());
+        for (KnowPostFeedRow r : rows) {
+            postIds.add(r.getId());
+        }
+        Map<Long, List<UserBrief>> likersByPost = recentLikersService.top5Batch(postIds);
+
         for (KnowPostFeedRow r : rows) {
             List<String> tags = parseStringArray(r.getTags());
             List<String> imgs = parseStringArray(r.getImgUrls());
@@ -480,6 +511,9 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             Boolean liked = userIdNullable != null && counterService.isLiked("knowpost", String.valueOf(r.getId()), userIdNullable);
             Boolean faved = userIdNullable != null && counterService.isFaved("knowpost", String.valueOf(r.getId()), userIdNullable);
             Boolean isTop = includeIsTop ? r.getIsTop() : null;
+
+            List<UserBrief> recentLikers = likersByPost.getOrDefault(r.getId(), List.of());
+            String likerSummary = recentLikersService.summary(recentLikers, likeCount);
 
             items.add(new FeedItemResponse(
                     String.valueOf(r.getId()),
@@ -496,7 +530,8 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
                     liked,
                     faved,
                     isTop,
-                    List.of(), ""
+                    recentLikers,
+                    likerSummary
             ));
         }
         return items;
