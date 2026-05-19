@@ -65,6 +65,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/stock/**").permitAll()
                         // 圈子广场（公开圈子可浏览，私密圈详情由服务层校验）
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/circles", "/api/v1/circles/*").permitAll()
+                        // 热门帖子（公开）
+                        .requestMatchers("/api/v1/hot/**").permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/send-code",
                                 "/api/v1/auth/register",

@@ -183,5 +183,23 @@
         WHERE id = #{postId} AND circle_id = #{circleId}
     </update>
 
+    <select id="listPublishedSince" resultMap="KnowPostResultMap">
+        SELECT *
+        FROM know_posts
+        WHERE status = 'published'
+          AND publish_time &gt;= #{since}
+        ORDER BY publish_time DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="listByTag" resultMap="KnowPostResultMap">
+        SELECT *
+        FROM know_posts
+        WHERE status = 'published'
+          AND JSON_CONTAINS(tags, JSON_QUOTE(#{tag}))
+        ORDER BY publish_time DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
 
 </mapper>

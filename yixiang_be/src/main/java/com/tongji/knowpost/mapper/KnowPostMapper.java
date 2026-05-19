@@ -7,6 +7,7 @@ import com.tongji.knowpost.model.KnowPostFeedRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -59,4 +60,8 @@ public interface KnowPostMapper {
     int setFeatured(@Param("postId") long postId,
                     @Param("circleId") long circleId,
                     @Param("isFeatured") int isFeatured);
+
+    List<KnowPost> listPublishedSince(@Param("since") Instant since, @Param("limit") int limit);
+
+    List<KnowPost> listByTag(@Param("tag") String tag, @Param("offset") int offset, @Param("limit") int limit);
 }
