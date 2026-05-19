@@ -21,7 +21,14 @@ public enum ErrorCode {
     FORBIDDEN("FORBIDDEN", "无操作权限"),
     CIRCLE_NOT_FOUND("CIRCLE_NOT_FOUND", "圈子不存在"),
     NOT_CIRCLE_MEMBER("NOT_CIRCLE_MEMBER", "需要先加入圈子"),
-    ALREADY_CIRCLE_MEMBER("ALREADY_CIRCLE_MEMBER", "已经是圈子成员");
+    ALREADY_CIRCLE_MEMBER("ALREADY_CIRCLE_MEMBER", "已经是圈子成员"),
+    TOPIC_NOT_FOUND("TOPIC_NOT_FOUND", "话题不存在"),
+    DRAFT_NOT_FOUND("DRAFT_NOT_FOUND", "草稿不存在"),
+    DRAFT_FORBIDDEN("DRAFT_FORBIDDEN", "无权操作该草稿"),
+    DRAFT_PUBLISH_INVALID("DRAFT_PUBLISH_INVALID", "草稿信息不完整,无法发布"),
+    SETTINGS_INVALID_PAYLOAD("SETTINGS_INVALID_PAYLOAD", "设置项格式错误"),
+    HOT_PERIOD_INVALID("HOT_PERIOD_INVALID", "热门时间窗口参数错误"),
+    RECOMMEND_TYPE_INVALID("RECOMMEND_TYPE_INVALID", "推荐类型错误");
 
     private final String code;
     private final String defaultMessage;
