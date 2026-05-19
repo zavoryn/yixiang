@@ -56,7 +56,8 @@ public class FavoriteServiceImpl implements FavoriteService {
                     null, null, null,
                     null,
                     Boolean.TRUE,
-                    post.getIsTop()
+                    post.getIsTop(),
+                    List.of(), ""
             ));
         }
 
