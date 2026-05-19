@@ -34,28 +34,25 @@ export const knowpostService = {
   ,
   
   // 设置置顶（需鉴权）
-  setTop: (id: string, isTop: boolean, accessToken: string) =>
+  setTop: (id: string, isTop: boolean) =>
     apiFetch<void>(`${KNOWPOST_PREFIX}/${id}/top`, {
       method: "PATCH",
       body: JSON.stringify({ isTop }),
-      accessToken
     })
   ,
 
   // 设置可见性（需鉴权）
-  setVisibility: (id: string, visible: VisibleScope, accessToken: string) =>
+  setVisibility: (id: string, visible: VisibleScope) =>
     apiFetch<void>(`${KNOWPOST_PREFIX}/${id}/visibility`, {
       method: "PATCH",
       body: JSON.stringify({ visible }),
-      accessToken
     })
   ,
 
   // 删除知文（需鉴权）
-  remove: (id: string, accessToken: string) =>
+  remove: (id: string) =>
     apiFetch<void>(`${KNOWPOST_PREFIX}/${id}`, {
       method: "DELETE",
-      accessToken
     })
   ,
 
@@ -65,65 +62,56 @@ export const knowpostService = {
   ,
 
   // 获取我的知文（需鉴权）
-  mine: (page = 1, size = 20, accessToken: string) =>
-    apiFetch<FeedResponse>(`${KNOWPOST_PREFIX}/mine?page=${page}&size=${size}`, {
-      accessToken
-    })
+  mine: (page = 1, size = 20) =>
+    apiFetch<FeedResponse>(`${KNOWPOST_PREFIX}/mine?page=${page}&size=${size}`)
   ,
 
   // 获取知文详情（公开内容无需鉴权；非公开需要作者凭证）
   detail: (id: string, accessToken?: string) =>
     apiFetch<KnowpostDetailResponse>(`${KNOWPOST_PREFIX}/detail/${id}`, {
-      accessToken: accessToken ?? null
+      skipAuth: !accessToken
     })
   ,
 
   // 生成知文摘要（需鉴权）
-  suggestDescription: (content: string, accessToken: string) =>
+  suggestDescription: (content: string) =>
     apiFetch<{ description: string }>(`${KNOWPOST_PREFIX}/description/suggest`, {
       method: "POST",
       body: JSON.stringify({ content }),
-      accessToken
     })
   ,
 
   // 点赞/取消点赞（需鉴权）
-  like: (entityId: string, accessToken: string, entityType: string = "knowpost") =>
+  like: (entityId: string, entityType: string = "knowpost") =>
     apiFetch<LikeActionResponse>(`/api/v1/action/like`, {
       method: "POST",
       body: JSON.stringify({ entityType, entityId }),
-      accessToken
     })
   ,
-  unlike: (entityId: string, accessToken: string, entityType: string = "knowpost") =>
+  unlike: (entityId: string, entityType: string = "knowpost") =>
     apiFetch<LikeActionResponse>(`/api/v1/action/unlike`, {
       method: "POST",
       body: JSON.stringify({ entityType, entityId }),
-      accessToken
     })
   ,
 
   // 收藏/取消收藏（需鉴权）
-  fav: (entityId: string, accessToken: string, entityType: string = "knowpost") =>
+  fav: (entityId: string, entityType: string = "knowpost") =>
     apiFetch<FavActionResponse>(`/api/v1/action/fav`, {
       method: "POST",
       body: JSON.stringify({ entityType, entityId }),
-      accessToken
     })
   ,
-  unfav: (entityId: string, accessToken: string, entityType: string = "knowpost") =>
+  unfav: (entityId: string, entityType: string = "knowpost") =>
     apiFetch<FavActionResponse>(`/api/v1/action/unfav`, {
       method: "POST",
       body: JSON.stringify({ entityType, entityId }),
-      accessToken
     })
   ,
 
   // 获取计数（需鉴权）
-  counters: (entityId: string, accessToken: string, entityType: string = "knowpost") =>
-    apiFetch<CounterResponse>(`/api/v1/counter/${entityType}/${entityId}?metrics=like,fav`, {
-      accessToken
-    })
+  counters: (entityId: string, entityType: string = "knowpost") =>
+    apiFetch<CounterResponse>(`/api/v1/counter/${entityType}/${entityId}?metrics=like,fav`)
 };
 
 /**

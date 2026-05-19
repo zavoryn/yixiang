@@ -5,28 +5,24 @@ import type { ProfileResponse } from "@/types/profile";
 const RELATION_PREFIX = "/api/v1/relation";
 
 export const relationService = {
-  follow: (toUserId: number, accessToken: string) =>
+  follow: (toUserId: number) =>
     apiFetch<boolean>(`${RELATION_PREFIX}/follow?toUserId=${toUserId}`, {
       method: "POST",
-      accessToken
     }),
 
-  unfollow: (toUserId: number, accessToken: string) =>
+  unfollow: (toUserId: number) =>
     apiFetch<boolean>(`${RELATION_PREFIX}/unfollow?toUserId=${toUserId}`, {
       method: "POST",
-      accessToken
     }),
 
-  status: (toUserId: number, accessToken: string) =>
-    apiFetch<RelationStatusResponse>(`${RELATION_PREFIX}/status?toUserId=${toUserId}`, {
-      accessToken
-    }),
+  status: (toUserId: number) =>
+    apiFetch<RelationStatusResponse>(`${RELATION_PREFIX}/status?toUserId=${toUserId}`),
 
   following: (userId: number, limit = 20, offset = 0, cursor?: number, accessToken?: string) => {
     const params = new URLSearchParams({ userId: String(userId), limit: String(limit), offset: String(offset) });
     if (typeof cursor === "number") params.set("cursor", String(cursor));
     return apiFetch<ProfileResponse[]>(`${RELATION_PREFIX}/following?${params.toString()}`, {
-      accessToken: accessToken ?? null
+      skipAuth: !accessToken
     });
   },
 
@@ -34,12 +30,10 @@ export const relationService = {
     const params = new URLSearchParams({ userId: String(userId), limit: String(limit), offset: String(offset) });
     if (typeof cursor === "number") params.set("cursor", String(cursor));
     return apiFetch<ProfileResponse[]>(`${RELATION_PREFIX}/followers?${params.toString()}`, {
-      accessToken: accessToken ?? null
+      skipAuth: !accessToken
     });
   },
 
-  counters: (userId: number, accessToken: string) =>
-    apiFetch<RelationCountersResponse>(`${RELATION_PREFIX}/counter?userId=${userId}`, {
-      accessToken
-    })
+  counters: (userId: number) =>
+    apiFetch<RelationCountersResponse>(`${RELATION_PREFIX}/counter?userId=${userId}`)
 };
