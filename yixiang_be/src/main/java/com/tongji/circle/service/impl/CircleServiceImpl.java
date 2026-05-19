@@ -12,6 +12,7 @@ import com.tongji.knowpost.mapper.KnowPostMapper;
 import com.tongji.activity.model.Activity;
 import com.tongji.activity.service.ActivityService;
 import com.tongji.user.domain.User;
+import com.tongji.user.mapper.UserMapper;
 import com.tongji.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,17 +28,20 @@ public class CircleServiceImpl implements CircleService {
     private final UserService userService;
     private final KnowPostMapper knowPostMapper;
     private final ActivityService activityService;
+    private final UserMapper userMapper;
 
     public CircleServiceImpl(CircleMapper circleMapper,
                              CircleMemberMapper memberMapper,
                              UserService userService,
                              KnowPostMapper knowPostMapper,
-                             ActivityService activityService) {
+                             ActivityService activityService,
+                             UserMapper userMapper) {
         this.circleMapper = circleMapper;
         this.memberMapper = memberMapper;
         this.userService = userService;
         this.knowPostMapper = knowPostMapper;
         this.activityService = activityService;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -214,6 +218,55 @@ public class CircleServiceImpl implements CircleService {
     public boolean isMember(long userId, long circleId) {
         CircleMember m = memberMapper.findByCircleAndUser(circleId, userId);
         return m != null && "ACTIVE".equals(m.getStatus());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CircleMemberListResponse listMembers(long circleId, int page, int size) {
+        requireCircle(circleId);
+
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        int safePage = Math.max(page, 1);
+        int offset = (safePage - 1) * safeSize;
+
+        List<CircleMember> members =
+                memberMapper.listActiveMembers(circleId, offset, safeSize + 1);
+        boolean hasMore = members.size() > safeSize;
+        if (hasMore) {
+            members = members.subList(0, safeSize);
+        }
+
+        long total = (safePage == 1) ? memberMapper.countActive(circleId) : -1L;
+
+        if (members.isEmpty()) {
+            return new CircleMemberListResponse(
+                    List.of(), total, safePage, safeSize, hasMore);
+        }
+
+        java.util.List<Long> userIds = new java.util.ArrayList<>(members.size());
+        for (CircleMember m : members) userIds.add(m.getUserId());
+        java.util.Map<Long, User> userMap =
+                userMapper.listSummariesByIds(userIds).stream()
+                        .collect(java.util.stream.Collectors.toMap(
+                                User::getId, u -> u));
+
+        java.util.List<CircleMemberItem> items =
+                new java.util.ArrayList<>(members.size());
+        for (CircleMember m : members) {
+            User u = userMap.get(m.getUserId());
+            if (u == null) continue;
+            items.add(new CircleMemberItem(
+                    u.getId(),
+                    u.getNickname(),
+                    u.getAvatar(),
+                    m.getRole(),
+                    Boolean.TRUE.equals(u.getVerified()),
+                    m.getJoinedAt()
+            ));
+        }
+
+        return new CircleMemberListResponse(
+                items, total, safePage, safeSize, hasMore);
     }
 
     private Circle requireCircle(long circleId) {

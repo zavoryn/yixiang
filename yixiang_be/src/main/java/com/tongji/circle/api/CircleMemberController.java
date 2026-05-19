@@ -1,6 +1,7 @@
 package com.tongji.circle.api;
 
 import com.tongji.auth.token.JwtService;
+import com.tongji.circle.api.dto.CircleMemberListResponse;
 import com.tongji.circle.service.CircleService;
 import com.tongji.knowpost.mapper.KnowPostMapper;
 import org.springframework.http.ResponseEntity;
@@ -73,5 +74,13 @@ public class CircleMemberController {
         // Visibility check: detail() throws NOT_CIRCLE_MEMBER for private circles if not a member
         circleService.detail(circleId, uid);
         return knowPostMapper.listByCircle(circleId, featured ? 1 : null, cursor, Math.min(size, 50));
+    }
+
+    @GetMapping("/members")
+    public CircleMemberListResponse listMembers(
+            @PathVariable long circleId,
+            @RequestParam(value = "page", defaultValue = "1") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        return circleService.listMembers(circleId, page, size);
     }
 }

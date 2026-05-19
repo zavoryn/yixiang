@@ -15,4 +15,5 @@ public interface CircleService {
     void featurePost(long operatorId, long circleId, long postId, boolean featured);
     List<CircleSummaryResponse> joined(long userId);
     boolean isMember(long userId, long circleId);
+    CircleMemberListResponse listMembers(long circleId, int page, int size);
 }
