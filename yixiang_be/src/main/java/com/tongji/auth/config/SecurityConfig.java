@@ -69,6 +69,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/hot/**").permitAll()
                         // 话题（GET 公开，POST view 需认证）
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/topics/**").permitAll()
+                        // 推荐（公开，已登录用户排除已关注/已加入）
+                        .requestMatchers("/api/v1/recommend/**").permitAll()
                         .requestMatchers(
                                 "/api/v1/auth/send-code",
                                 "/api/v1/auth/register",

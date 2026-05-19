@@ -64,4 +64,17 @@
         UPDATE circles SET post_count = post_count + #{delta} WHERE id = #{id}
     </update>
 
+    <select id="listByMemberCountDesc" resultMap="CircleResultMap">
+        SELECT * FROM circles
+        WHERE status = 'ACTIVE' AND visibility = 'PUBLIC'
+        <if test="excludeIds != null and !excludeIds.isEmpty()">
+            AND id NOT IN
+            <foreach collection="excludeIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        ORDER BY member_count DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

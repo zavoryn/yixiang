@@ -145,4 +145,19 @@
         </foreach>
     </select>
 
+    <select id="findTopFollowedUserIds" resultType="long">
+        SELECT to_user_id
+        FROM follower
+        WHERE rel_status = 1
+        <if test="excludeIds != null and !excludeIds.isEmpty()">
+            AND to_user_id NOT IN
+            <foreach collection="excludeIds" item="id" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        </if>
+        GROUP BY to_user_id
+        ORDER BY COUNT(*) DESC
+        LIMIT #{limit}
+    </select>
+
 </mapper>

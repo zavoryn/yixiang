@@ -4,6 +4,7 @@ import com.tongji.circle.model.Circle;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 @Mapper
@@ -19,4 +20,5 @@ public interface CircleMapper {
     List<Circle> listJoined(@Param("userId") long userId);
     int incrementMemberCount(@Param("id") long id, @Param("delta") int delta);
     int incrementPostCount(@Param("id") long id, @Param("delta") int delta);
+    List<Circle> listByMemberCountDesc(@Param("limit") int limit, @Param("excludeIds") Collection<Long> excludeIds);
 }

@@ -438,4 +438,9 @@ public class RelationServiceImpl implements RelationService {
             redis.call('PEXPIRE', key, 60000)
             return 1
             """;
+
+    @Override
+    public List<Long> listFollowingIds(long userId) {
+        return following(userId, Integer.MAX_VALUE, 0);
+    }
 }

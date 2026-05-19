@@ -30,4 +30,6 @@ public interface UserMapper {
     List<User> listByIds(@Param("ids") List<Long> ids);
 
     List<User> listSummariesByIds(@Param("ids") Collection<Long> ids);
+
+    List<Long> findTopFollowedUserIds(@Param("limit") int limit, @Param("excludeIds") Collection<Long> excludeIds);
 }
