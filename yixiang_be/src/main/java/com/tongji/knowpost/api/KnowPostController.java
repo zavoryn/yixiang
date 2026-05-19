@@ -131,6 +131,18 @@ public class KnowPostController {
     }
 
     /**
+     * 某用户的点赞知文列表（公开已发布），按点赞时间倒序。
+     */
+    @GetMapping("/liked")
+    public FeedPageResponse liked(@RequestParam("userId") long userId,
+                                  @RequestParam(value = "page", defaultValue = "1") int page,
+                                  @RequestParam(value = "size", defaultValue = "20") int size,
+                                  @AuthenticationPrincipal Jwt jwt) {
+        Long viewerId = (jwt == null) ? null : jwtService.extractUserId(jwt);
+        return feedService.getLikedFeed(userId, viewerId, page, size);
+    }
+
+    /**
      * 知文详情（公开：published+public；非公开需作者本人）。
      */
     @GetMapping("/detail/{id}")

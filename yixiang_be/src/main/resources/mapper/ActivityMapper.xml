@@ -36,4 +36,14 @@
         DELETE FROM activities WHERE created_at &lt; #{cutoff}
     </delete>
 
+    <select id="listLikedPostIdsByUser" resultType="long">
+        SELECT target_id
+        FROM activities
+        WHERE user_id = #{userId}
+          AND type = 'LIKE'
+          AND target_type = 'POST'
+        ORDER BY id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
 </mapper>

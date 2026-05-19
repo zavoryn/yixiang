@@ -9,6 +9,7 @@ import com.tongji.knowpost.mapper.KnowPostMapper;
 import com.tongji.knowpost.model.KnowPostFeedRow;
 import com.tongji.counter.service.CounterService;
 import com.tongji.counter.recent.RecentLikersService;
+import com.tongji.activity.mapper.ActivityMapper;
 import com.tongji.user.api.dto.UserBrief;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.tongji.cache.hotkey.HotKeyDetector;
@@ -35,6 +36,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
     private final ObjectMapper objectMapper;
     private final CounterService counterService;
     private final RecentLikersService recentLikersService;
+    private final ActivityMapper activityMapper;
     private final Cache<String, FeedPageResponse> feedPublicCache;
     private final Cache<String, FeedPageResponse> feedMineCache;
     private final HotKeyDetector hotKey;
@@ -59,6 +61,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             ObjectMapper objectMapper,
             CounterService counterService,
             RecentLikersService recentLikersService,
+            ActivityMapper activityMapper,
             @Qualifier("feedPublicCache") Cache<String, FeedPageResponse> feedPublicCache,
             @Qualifier("feedMineCache") Cache<String, FeedPageResponse> feedMineCache,
             HotKeyDetector hotKey
@@ -68,6 +71,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         this.objectMapper = objectMapper;
         this.counterService = counterService;
         this.recentLikersService = recentLikersService;
+        this.activityMapper = activityMapper;
         this.feedPublicCache = feedPublicCache;
         this.feedMineCache = feedMineCache;
         this.hotKey = hotKey;
@@ -464,6 +468,41 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         } catch (Exception ignored) {}
         log.info("feed.mine source=db key={} page={} size={} user={} hasMore={}", key, safePage, safeSize, userId, hasMore);
         return resp;
+    }
+
+    @Override
+    public FeedPageResponse getLikedFeed(long ownerUserId, Long viewerUserId, int page, int size) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        int safePage = Math.max(page, 1);
+        int offset = (safePage - 1) * safeSize;
+
+        List<Long> rawIds = activityMapper.listLikedPostIdsByUser(ownerUserId, offset, safeSize + 1);
+
+        java.util.LinkedHashSet<Long> uniqueIds = new java.util.LinkedHashSet<>(rawIds);
+        List<Long> orderedIds = new ArrayList<>(uniqueIds);
+
+        boolean hasMore = orderedIds.size() > safeSize;
+        if (hasMore) {
+            orderedIds = orderedIds.subList(0, safeSize);
+        }
+
+        if (orderedIds.isEmpty()) {
+            return new FeedPageResponse(List.of(), safePage, safeSize, false);
+        }
+
+        List<KnowPostFeedRow> rows = mapper.listFeedByIds(orderedIds);
+        Map<Long, KnowPostFeedRow> byId = new java.util.HashMap<>(rows.size());
+        for (KnowPostFeedRow r : rows) {
+            byId.put(r.getId(), r);
+        }
+        List<KnowPostFeedRow> ordered = new ArrayList<>(orderedIds.size());
+        for (Long id : orderedIds) {
+            KnowPostFeedRow row = byId.get(id);
+            if (row != null) ordered.add(row);
+        }
+
+        List<FeedItemResponse> items = mapRowsToItems(ordered, viewerUserId, false);
+        return new FeedPageResponse(items, safePage, safeSize, hasMore);
     }
 
     /**

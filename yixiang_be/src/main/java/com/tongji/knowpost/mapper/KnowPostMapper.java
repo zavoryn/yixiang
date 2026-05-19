@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -49,6 +50,8 @@ public interface KnowPostMapper {
 
     // 列出我的已发布知文ID列表
     List<Long> listMyPublishedIds(@Param("creatorId") long creatorId);
+
+    List<KnowPostFeedRow> listFeedByIds(@Param("ids") Collection<Long> ids);
 
     // 圈子帖子列表（cursor-based）
     List<Map<String, Object>> listByCircle(@Param("circleId") long circleId,

@@ -13,4 +13,8 @@ public interface ActivityMapper {
                                @Param("cursorId") Long cursorId,
                                @Param("limit") int limit);
     int deleteOlderThan(@Param("cutoff") Instant cutoff);
+
+    List<Long> listLikedPostIdsByUser(@Param("userId") long userId,
+                                      @Param("offset") int offset,
+                                      @Param("limit") int limit);
 }
