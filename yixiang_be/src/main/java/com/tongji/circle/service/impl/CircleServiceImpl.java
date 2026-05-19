@@ -9,6 +9,8 @@ import com.tongji.circle.service.CircleService;
 import com.tongji.common.exception.BusinessException;
 import com.tongji.common.exception.ErrorCode;
 import com.tongji.knowpost.mapper.KnowPostMapper;
+import com.tongji.activity.model.Activity;
+import com.tongji.activity.service.ActivityService;
 import com.tongji.user.domain.User;
 import com.tongji.user.service.UserService;
 import org.springframework.stereotype.Service;
@@ -24,15 +26,18 @@ public class CircleServiceImpl implements CircleService {
     private final CircleMemberMapper memberMapper;
     private final UserService userService;
     private final KnowPostMapper knowPostMapper;
+    private final ActivityService activityService;
 
     public CircleServiceImpl(CircleMapper circleMapper,
                              CircleMemberMapper memberMapper,
                              UserService userService,
-                             KnowPostMapper knowPostMapper) {
+                             KnowPostMapper knowPostMapper,
+                             ActivityService activityService) {
         this.circleMapper = circleMapper;
         this.memberMapper = memberMapper;
         this.userService = userService;
         this.knowPostMapper = knowPostMapper;
+        this.activityService = activityService;
     }
 
     @Override
@@ -147,6 +152,12 @@ public class CircleServiceImpl implements CircleService {
             member.setStatus("ACTIVE");
             memberMapper.insert(member);
             circleMapper.incrementMemberCount(circleId, 1);
+            activityService.record(Activity.builder()
+                    .userId(userId)
+                    .type("JOIN_CIRCLE")
+                    .targetType("CIRCLE")
+                    .targetId(circleId)
+                    .build());
         } else {
             member.setStatus("PENDING");
             memberMapper.insert(member);
@@ -178,6 +189,12 @@ public class CircleServiceImpl implements CircleService {
         }
         memberMapper.updateStatus(circleId, targetUserId, "ACTIVE");
         circleMapper.incrementMemberCount(circleId, 1);
+        activityService.record(Activity.builder()
+                .userId(targetUserId)
+                .type("JOIN_CIRCLE")
+                .targetType("CIRCLE")
+                .targetId(circleId)
+                .build());
     }
 
     @Override

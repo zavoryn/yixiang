@@ -13,6 +13,8 @@ import com.tongji.draft.service.DraftService;
 import com.tongji.knowpost.mapper.KnowPostMapper;
 import com.tongji.knowpost.model.KnowPost;
 import com.tongji.topic.service.TopicService;
+import com.tongji.activity.model.Activity;
+import com.tongji.activity.service.ActivityService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,15 +29,18 @@ public class DraftServiceImpl implements DraftService {
     private final KnowPostMapper postMapper;
     private final ObjectMapper objectMapper;
     private final TopicService topicService;
+    private final ActivityService activityService;
 
     public DraftServiceImpl(DraftMapper draftMapper,
                             KnowPostMapper postMapper,
                             ObjectMapper objectMapper,
-                            TopicService topicService) {
+                            TopicService topicService,
+                            ActivityService activityService) {
         this.draftMapper = draftMapper;
         this.postMapper = postMapper;
         this.objectMapper = objectMapper;
         this.topicService = topicService;
+        this.activityService = activityService;
     }
 
     @Override
@@ -114,6 +119,14 @@ public class DraftServiceImpl implements DraftService {
 
         draftMapper.delete(draftId, userId);
         topicService.onPostCreated(parseTags(d.getTagsJson()));
+
+        activityService.record(Activity.builder()
+                .userId(userId)
+                .type("POST")
+                .targetType("POST")
+                .targetId(post.getId())
+                .build());
+
         return post.getId();
     }
 
