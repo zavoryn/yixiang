@@ -46,6 +46,16 @@ public class ProfileServiceImpl implements ProfileService {
         return Optional.ofNullable(userMapper.findById(userId));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public ProfileResponse getProfile(long userId) {
+        User user = userMapper.findById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.IDENTIFIER_NOT_FOUND, "用户不存在");
+        }
+        return toResponse(user);
+    }
+
     /**
      * 更新个人资料（支持部分字段更新）。
      *
