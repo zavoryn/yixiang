@@ -29,7 +29,7 @@ export default function CircleRecommend() {
     <div className="card-base overflow-hidden">
       <div className="section-title flex items-center justify-between">
         <span>推荐圈子</span>
-        <Link to="/circles" className="text-xs text-primary font-normal hover:underline">更多</Link>
+        <Link to="/circles" className="text-xs text-blue-600 font-normal hover:underline">更多</Link>
       </div>
       <div className="px-3 pb-3 space-y-2">
         {circles.map(c => (
@@ -37,16 +37,16 @@ export default function CircleRecommend() {
             <Link to={`/circles/${c.id}`}>
               <Avatar className="w-9 h-9 shrink-0">
                 <AvatarImage src={c.avatarUrl ?? undefined} />
-                <AvatarFallback className="text-xs bg-primary/10 text-primary">{c.name[0]}</AvatarFallback>
+                <AvatarFallback className="text-xs bg-blue-50 text-blue-600">{c.name[0]}</AvatarFallback>
               </Avatar>
             </Link>
             <div className="flex-1 min-w-0">
-              <Link to={`/circles/${c.id}`} className="text-sm font-medium text-foreground hover:text-primary block truncate">
+              <Link to={`/circles/${c.id}`} className="text-sm font-medium text-gray-900 hover:text-blue-600 block truncate">
                 {c.name}
               </Link>
-              <p className="text-xs text-muted-foreground">{c.memberCount} 成员</p>
+              <p className="text-xs text-gray-400">{c.memberCount} 成员</p>
             </div>
-            <Button size="sm" variant="outline" className="h-6 text-xs px-2.5 rounded-full shrink-0"
+            <Button size="sm" variant="outline" className="h-6 text-xs px-2.5 rounded-full shrink-0 text-blue-600 border-blue-200 hover:bg-blue-50"
               onClick={() => handleJoin(c)}>
               加入
             </Button>

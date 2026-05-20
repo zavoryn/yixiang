@@ -8,7 +8,7 @@ import PageShell from '@/components/layout/PageShell';
 import HotTopics from '@/components/widgets/HotTopics';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { Users, FileText, Calendar, Lock, ArrowLeft } from 'lucide-react';
+import { Users, FileText, Calendar, Lock, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -62,7 +62,7 @@ export default function CircleDetailPage() {
     finally { setActionLoading(false); }
   };
 
-  if (loading) return <div className="card-base p-12 text-center text-muted-foreground">加载中…</div>;
+  if (loading) return <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">加载中…</div>;
   if (!circle) return null;
 
   const roleLabel: Record<string, string> = { OWNER: '创建者', ADMIN: '管理员', MEMBER: '成员' };
@@ -71,28 +71,31 @@ export default function CircleDetailPage() {
     <>
       {circle.topMembers?.[0] && (
         <div className="card-base p-4">
-          <div className="text-sm font-semibold mb-3">圈主介绍</div>
+          <div className="section-title px-0 pt-0">圈主介绍</div>
           <Link to={`/user/${circle.topMembers[0].userId}`} className="flex items-center gap-2.5 hover:opacity-80">
-            <Avatar className="w-10 h-10">
+            <Avatar className="w-10 h-10 border border-gray-100">
               <AvatarImage src={circle.topMembers[0].avatar ?? undefined} />
-              <AvatarFallback>{circle.topMembers[0].nickname[0]}</AvatarFallback>
+              <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">{circle.topMembers[0].nickname[0]}</AvatarFallback>
             </Avatar>
             <div>
-              <div className="text-sm font-medium">{circle.topMembers[0].nickname}</div>
-              <div className="text-xs text-muted-foreground">创建者</div>
+              <div className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                {circle.topMembers[0].nickname}
+                <CheckCircle2 size={14} className="text-blue-500 fill-blue-500 text-white" />
+              </div>
+              <div className="text-xs text-gray-400">创建者</div>
             </div>
           </Link>
         </div>
       )}
       {circle.topMembers?.length > 1 && (
         <div className="card-base p-4">
-          <div className="text-sm font-semibold mb-3">最新加入成员 ({circle.memberCount})</div>
+          <div className="section-title px-0 pt-0">最新加入成员 ({circle.memberCount})</div>
           <div className="flex flex-wrap gap-2">
             {circle.topMembers.map(m => (
               <Link key={m.userId} to={`/user/${m.userId}`}>
-                <Avatar className="w-9 h-9 hover:opacity-80 transition-opacity">
+                <Avatar className="w-9 h-9 hover:opacity-80 transition-opacity border border-gray-100">
                   <AvatarImage src={m.avatar ?? undefined} />
-                  <AvatarFallback className="text-xs">{m.nickname[0]}</AvatarFallback>
+                  <AvatarFallback className="text-xs bg-blue-50 text-blue-600">{m.nickname[0]}</AvatarFallback>
                 </Avatar>
               </Link>
             ))}
@@ -105,20 +108,21 @@ export default function CircleDetailPage() {
 
   return (
     <PageShell rightSidebar={rightSidebar}>
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-muted-foreground mb-3 hover:text-foreground transition-colors">
+      <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-gray-500 mb-4 hover:text-gray-800 transition-colors">
         <ArrowLeft className="w-4 h-4" />返回
       </button>
 
-      <div className="card-base overflow-hidden mb-3">
-        <div className="h-28 bg-gradient-to-br from-primary/30 to-primary/5" />
+      {/* Circle header */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
+        <div className="h-28 bg-gradient-to-br from-blue-500/30 via-blue-400/10 to-blue-50" />
         <div className="px-5 pb-0">
           <div className="flex items-end justify-between -mt-8 mb-3">
             <Avatar className="w-16 h-16 border-4 border-white shadow-md">
               <AvatarImage src={circle.avatarUrl ?? undefined} />
-              <AvatarFallback className="text-2xl bg-primary/10 text-primary font-bold">{circle.name[0]}</AvatarFallback>
+              <AvatarFallback className="text-2xl bg-blue-50 text-blue-600 font-bold">{circle.name[0]}</AvatarFallback>
             </Avatar>
             <div className="flex items-center gap-2 mb-1">
-              {circle.visibility === 'PRIVATE' && <Lock className="w-4 h-4 text-muted-foreground" />}
+              {circle.visibility === 'PRIVATE' && <Lock className="w-4 h-4 text-gray-400" />}
               {circle.myRole !== 'OWNER' && (
                 circle.joined
                   ? <Button variant="outline" size="sm" className="rounded-full" onClick={handleLeave} disabled={actionLoading}>退出圈子</Button>
@@ -132,13 +136,13 @@ export default function CircleDetailPage() {
             </div>
           </div>
 
-          <h1 className="text-lg font-bold flex items-center gap-2 mb-1">
-            {circle.name}
-            {circle.category && <span className="text-xs font-normal text-primary bg-primary/10 px-2 py-0.5 rounded-full">{circle.category}</span>}
-          </h1>
-          {circle.description && <p className="text-sm text-muted-foreground mb-2">{circle.description}</p>}
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-lg font-bold text-gray-900">{circle.name}</h1>
+            {circle.category && <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{circle.category}</span>}
+          </div>
+          {circle.description && <p className="text-sm text-gray-500 mb-2">{circle.description}</p>}
 
-          <div className="flex items-center gap-5 text-sm text-muted-foreground pb-3">
+          <div className="flex items-center gap-5 text-sm text-gray-400 pb-3">
             <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{circle.memberCount} 成员</span>
             <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{circle.postCount} 帖子</span>
             <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" />
@@ -147,13 +151,14 @@ export default function CircleDetailPage() {
           </div>
         </div>
 
-        <div className="flex border-t border-border">
+        {/* Tabs */}
+        <div className="flex border-t border-gray-100 px-5">
           {TABS.map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+              className={`py-3.5 px-4 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}
             >
               {t}
@@ -162,42 +167,54 @@ export default function CircleDetailPage() {
         </div>
       </div>
 
+      {/* Tab content */}
       {(tab === '首页' || tab === '帖子' || tab === '精华') && (
-        <div className="space-y-2">
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {posts.map((post, idx) => {
             const postId = String(post.id ?? '');
             return (
-              <div key={`${postId}-${idx}`} className="card-base p-4 hover:shadow-sm transition-shadow cursor-pointer" onClick={() => navigate(`/post/${postId}`)}>
-                <h3 className="text-[15px] font-semibold text-foreground line-clamp-2 mb-1">{String(post.title ?? '')}</h3>
-                {String(post.description ?? '') && <p className="text-sm text-muted-foreground line-clamp-2">{String(post.description)}</p>}
+              <div
+                key={`${postId}-${idx}`}
+                className={`px-5 py-4 hover:bg-gray-50/50 transition-colors cursor-pointer ${
+                  idx < posts.length - 1 ? 'border-b border-gray-100' : ''
+                }`}
+                onClick={() => navigate(`/post/${postId}`)}
+              >
+                <h3 className="text-[15px] font-semibold text-gray-900 line-clamp-2 mb-1">{String(post.title ?? '')}</h3>
+                {String(post.description ?? '') && <p className="text-sm text-gray-500 line-clamp-2">{String(post.description)}</p>}
               </div>
             );
           })}
-          {posts.length === 0 && <div className="card-base p-12 text-center text-muted-foreground">暂无帖子</div>}
+          {posts.length === 0 && <div className="p-12 text-center text-gray-400">暂无帖子</div>}
         </div>
       )}
 
       {tab === '成员' && (
-        <div className="card-base divide-y divide-border overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-50 overflow-hidden">
           {circle.topMembers?.length ? circle.topMembers.map(m => (
-            <Link key={m.userId} to={`/user/${m.userId}`} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors">
-              <Avatar className="w-10 h-10">
+            <Link key={m.userId} to={`/user/${m.userId}`} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
+              <Avatar className="w-10 h-10 border border-gray-100">
                 <AvatarImage src={m.avatar ?? undefined} />
-                <AvatarFallback>{m.nickname[0]}</AvatarFallback>
+                <AvatarFallback className="bg-blue-50 text-blue-600">{m.nickname[0]}</AvatarFallback>
               </Avatar>
-              <div className="flex-1"><div className="text-sm font-medium">{m.nickname}</div></div>
-              <span className="text-xs text-muted-foreground">{roleLabel[m.role]}</span>
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                  {m.nickname}
+                  <CheckCircle2 size={14} className="text-blue-500 fill-blue-500 text-white" />
+                </div>
+              </div>
+              <span className="text-xs text-gray-400">{roleLabel[m.role]}</span>
             </Link>
-          )) : <div className="p-12 text-center text-muted-foreground text-sm">暂无成员</div>}
+          )) : <div className="p-12 text-center text-gray-400 text-sm">暂无成员</div>}
         </div>
       )}
 
       {tab === '关于' && (
-        <div className="card-base p-5 space-y-4">
-          {circle.description && <div><p className="text-xs text-muted-foreground mb-1">简介</p><p className="text-sm">{circle.description}</p></div>}
-          {circle.category && <div><p className="text-xs text-muted-foreground mb-1">分类</p><p className="text-sm">{circle.category}</p></div>}
-          <div><p className="text-xs text-muted-foreground mb-1">类型</p><p className="text-sm">{circle.visibility === 'PRIVATE' ? '私密圈子（需申请加入）' : '公开圈子'}</p></div>
-          <div><p className="text-xs text-muted-foreground mb-1">创建时间</p><p className="text-sm">{formatDistanceToNow(new Date(circle.createdAt), { addSuffix: true, locale: zhCN })}</p></div>
+        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
+          {circle.description && <div><p className="text-xs text-gray-400 mb-1">简介</p><p className="text-sm text-gray-900">{circle.description}</p></div>}
+          {circle.category && <div><p className="text-xs text-gray-400 mb-1">分类</p><p className="text-sm text-gray-900">{circle.category}</p></div>}
+          <div><p className="text-xs text-gray-400 mb-1">类型</p><p className="text-sm text-gray-900">{circle.visibility === 'PRIVATE' ? '私密圈子（需申请加入）' : '公开圈子'}</p></div>
+          <div><p className="text-xs text-gray-400 mb-1">创建时间</p><p className="text-sm text-gray-900">{formatDistanceToNow(new Date(circle.createdAt), { addSuffix: true, locale: zhCN })}</p></div>
         </div>
       )}
     </PageShell>

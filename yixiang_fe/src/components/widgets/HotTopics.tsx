@@ -1,39 +1,38 @@
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp } from 'lucide-react';
 
 const TOPICS = [
-  { name: 'A股大盘走势', heat: 23410 },
-  { name: '量化交易策略', heat: 18903 },
-  { name: '价值投资选股', heat: 15672 },
-  { name: '可转债套利',   heat: 12345 },
-  { name: 'ETF定投策略',  heat: 8901 },
-  { name: '财报分析技巧', heat: 7562 },
+  { title: '宁德时代Q3财报解读', views: '3.2w' },
+  { title: 'A股保卫战', views: '2.8w' },
+  { title: '半导体主线还能走多远?', views: '1.5w' },
+  { title: '美股降息预期升温', views: '1.1w' },
 ];
-
-const rankColors = ['text-red-500', 'text-orange-500', 'text-amber-500'];
 
 export default function HotTopics() {
   const navigate = useNavigate();
 
   return (
-    <div className="card-base overflow-hidden">
-      <div className="section-title flex items-center gap-1.5">
-        <TrendingUp className="w-4 h-4 text-primary" />
-        热门话题
+    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+      <div className="flex justify-between items-center mb-5">
+        <h3 className="font-bold text-[16px] text-gray-900">热门话题</h3>
+        <a href="#" className="text-xs text-gray-400 hover:text-gray-600">查看全部 &gt;</a>
       </div>
-      <div className="px-3 pb-3 space-y-0.5">
-        {TOPICS.map((t, i) => (
-          <button
-            key={t.name}
-            onClick={() => navigate(`/search?q=${encodeURIComponent(t.name)}`)}
-            className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted text-left transition-colors"
+      <div className="flex flex-col gap-4">
+        {TOPICS.map((topic, index) => (
+          <div
+            key={topic.title}
+            className="flex items-center justify-between group cursor-pointer"
+            onClick={() => navigate(`/search?q=${encodeURIComponent(topic.title)}`)}
           >
-            <span className={`w-5 text-center text-sm font-bold shrink-0 ${rankColors[i] || 'text-muted-foreground'}`}>
-              {i + 1}
-            </span>
-            <span className="flex-1 text-sm text-foreground truncate">{t.name}</span>
-            <span className="text-xs text-muted-foreground shrink-0">{(t.heat / 10000).toFixed(1)}w</span>
-          </button>
+            <div className="flex items-center gap-3">
+              <span className={`text-[15px] font-bold w-4 text-center ${index < 3 ? 'text-red-500' : 'text-gray-400'}`}>
+                {index + 1}
+              </span>
+              <span className="text-[14px] text-gray-800 group-hover:text-blue-600 transition-colors">
+                {topic.title}
+              </span>
+            </div>
+            <span className="text-xs text-gray-400">{topic.views}</span>
+          </div>
         ))}
       </div>
     </div>

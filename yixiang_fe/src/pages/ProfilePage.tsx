@@ -11,7 +11,7 @@ import FeedCard from '@/components/post/FeedCard';
 import { enrichFeedItems } from '@/mock/enrichData';
 import PageShell from '@/components/layout/PageShell';
 import HotTopics from '@/components/widgets/HotTopics';
-import { Edit2, MapPin, Verified } from 'lucide-react';
+import { Edit2, MapPin, CheckCircle2 } from 'lucide-react';
 
 const TABS = ['帖子', '圈子', '收藏', '关注'] as const;
 type TabName = (typeof TABS)[number];
@@ -70,19 +70,33 @@ export default function ProfilePage() {
     } catch {}
   };
 
-  if (loading) return <div className="card-base p-12 text-center text-muted-foreground">加载中…</div>;
+  if (loading) return <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">加载中…</div>;
 
   const skills = (() => {
     try { return profileUser?.tagJson ? JSON.parse(profileUser.tagJson) : []; } catch { return []; }
   })();
 
+  const handleLike = (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    const wasLiked = post.liked;
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, liked: !wasLiked, likeCount: (p.likeCount || 0) + (wasLiked ? -1 : 1) } : p));
+  };
+
+  const handleFav = (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    const wasFaved = post.faved;
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, faved: !wasFaved, favoriteCount: (p.favoriteCount || 0) + (wasFaved ? -1 : 1) } : p));
+  };
+
   const rightSidebar = (
     <>
       {profileUser && (
         <div className="card-base p-4 space-y-2">
-          <div className="text-sm font-semibold text-foreground mb-3">个人信息</div>
+          <div className="text-sm font-semibold text-gray-900 mb-3">个人信息</div>
           {profileUser.school && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
               <MapPin className="w-3.5 h-3.5 shrink-0" />
               {profileUser.school}
             </div>
@@ -90,7 +104,7 @@ export default function ProfilePage() {
           {skills.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {skills.map((t: string) => (
-                <span key={t} className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{t}</span>
+                <span key={t} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{t}</span>
               ))}
             </div>
           )}
@@ -102,18 +116,19 @@ export default function ProfilePage() {
 
   return (
     <PageShell rightSidebar={rightSidebar}>
-      <div className="card-base overflow-hidden mb-3">
-        <div className="h-36 bg-gradient-to-br from-primary/30 via-primary/10 to-blue-50" />
+      {/* Profile header card */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
+        <div className="h-32 bg-gradient-to-br from-blue-500/30 via-blue-400/10 to-blue-50" />
         <div className="px-5 pb-4">
           <div className="flex items-end justify-between -mt-9 mb-3">
-            <Avatar className="w-[72px] h-[72px] border-4 border-white shadow-md">
+            <Avatar className="w-[68px] h-[68px] border-4 border-white shadow-md">
               <AvatarImage src={profileUser?.avatar} />
-              <AvatarFallback className="text-2xl bg-primary/10 text-primary font-bold">
+              <AvatarFallback className="text-xl bg-blue-50 text-blue-600 font-bold">
                 {profileUser?.nickname?.charAt(0) || 'U'}
               </AvatarFallback>
             </Avatar>
             {isOwn ? (
-              <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={() => navigate('/profile/edit')}>
+              <Button variant="outline" size="sm" className="rounded-full gap-1.5 text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => navigate('/profile/edit')}>
                 <Edit2 className="w-3.5 h-3.5" />编辑资料
               </Button>
             ) : (
@@ -128,11 +143,11 @@ export default function ProfilePage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-lg font-bold text-foreground">{profileUser?.nickname || '用户'}</h1>
-            <Verified className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-1.5 mb-1">
+            <h1 className="text-lg font-bold text-gray-900">{profileUser?.nickname || '用户'}</h1>
+            <CheckCircle2 size={16} className="text-blue-500 fill-blue-500 text-white" />
           </div>
-          {profileUser?.bio && <p className="text-sm text-muted-foreground mb-3">{profileUser.bio}</p>}
+          {profileUser?.bio && <p className="text-sm text-gray-500 mb-3">{profileUser.bio}</p>}
 
           <div className="flex items-center gap-6 text-center">
             {[
@@ -142,20 +157,21 @@ export default function ProfilePage() {
               { label: '帖子', value: counters?.posts ?? 0, to: null },
             ].map(s => (
               <div key={s.label} className="cursor-pointer" onClick={() => s.to && navigate(s.to)}>
-                <div className="text-base font-bold text-foreground">{s.value}</div>
-                <div className="text-xs text-muted-foreground">{s.label}</div>
+                <div className="text-base font-bold text-gray-900">{s.value}</div>
+                <div className="text-xs text-gray-400">{s.label}</div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex border-t border-border">
+        {/* Tabs */}
+        <div className="flex border-t border-gray-100 px-5">
           {TABS.map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-3 text-sm font-medium transition-colors border-b-2 ${
-                tab === t ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+              className={`py-3.5 px-4 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}
             >
               {t}
@@ -164,14 +180,15 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Tab content */}
       {tab === '帖子' && (
-        <div className="space-y-2">
-          {posts.map(p => <FeedCard key={p.id} post={p} />)}
-          {posts.length === 0 && <div className="card-base p-12 text-center text-muted-foreground">暂无帖子</div>}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          {posts.map(p => <FeedCard key={p.id} post={p} onLike={handleLike} onFav={handleFav} />)}
+          {posts.length === 0 && <div className="p-12 text-center text-gray-400">暂无帖子</div>}
         </div>
       )}
       {tab !== '帖子' && (
-        <div className="card-base p-12 text-center text-muted-foreground">暂无内容</div>
+        <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">暂无内容</div>
       )}
     </PageShell>
   );

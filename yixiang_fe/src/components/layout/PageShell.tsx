@@ -10,7 +10,7 @@ export default function PageShell({ children, rightSidebar }: PageShellProps) {
     <div className="flex gap-5 items-start">
       <div className="flex-1 min-w-0">{children}</div>
       {rightSidebar && (
-        <aside className="w-[300px] shrink-0 space-y-3 sticky top-[68px]">
+        <aside className="w-[320px] shrink-0 space-y-4 sticky top-[88px]">
           {rightSidebar}
         </aside>
       )}

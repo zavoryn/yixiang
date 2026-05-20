@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ArrowLeft, Share2, Clock, BookOpen, Send, Loader2 } from "lucide-react";
+import { ArrowLeft, Share2, Clock, BookOpen, Send, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { knowpostService } from "@/services/knowpostService";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,7 +87,7 @@ export default function PostDetailPage() {
 
   if (loading) {
     return (
-      <div className="card-base p-12 text-center text-muted-foreground">
+      <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">
         加载中…
       </div>
     );
@@ -95,7 +95,7 @@ export default function PostDetailPage() {
 
   if (error || !post) {
     return (
-      <div className="card-base p-12 text-center text-muted-foreground">
+      <div className="bg-white rounded-2xl shadow-sm p-12 text-center text-gray-400">
         {error || "帖子不存在"}
       </div>
     );
@@ -109,20 +109,21 @@ export default function PostDetailPage() {
       {/* Author card */}
       <div className="card-base p-4">
         <div className="flex items-center gap-3 mb-3">
-          <Avatar className="w-12 h-12">
+          <Avatar className="w-11 h-11 border border-gray-100">
             <AvatarImage src={post.authorAvatar} />
-            <AvatarFallback className="bg-primary/10 text-primary">
+            <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
               {post.authorNickname?.charAt(0) || "U"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <Link
               to={`/user/${post.authorId || ""}`}
-              className="text-sm font-semibold text-foreground hover:text-primary block"
+              className="text-sm font-semibold text-gray-900 hover:text-blue-600 transition-colors flex items-center gap-1.5"
             >
               {post.authorNickname}
+              <CheckCircle2 size={14} className="text-blue-500 fill-blue-500 text-white" />
             </Link>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-gray-400">
               {post.publishTime &&
                 new Date(post.publishTime).toLocaleDateString("zh-CN")}
             </p>
@@ -139,7 +140,7 @@ export default function PostDetailPage() {
           })().map((t: string) => (
             <span
               key={t}
-              className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full mr-1"
+              className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full mr-1"
             >
               {t}
             </span>
@@ -154,7 +155,7 @@ export default function PostDetailPage() {
             {post.images.slice(0, 6).map((img, i) => (
               <div
                 key={i}
-                className="aspect-square rounded-md overflow-hidden bg-muted"
+                className="aspect-square rounded-lg overflow-hidden bg-gray-100"
               >
                 <img src={img} alt="" className="w-full h-full object-cover" />
               </div>
@@ -170,14 +171,14 @@ export default function PostDetailPage() {
     <PageShell rightSidebar={rightSidebar}>
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1 text-sm text-muted-foreground mb-3 hover:text-foreground transition-colors"
+        className="flex items-center gap-1 text-sm text-gray-500 mb-4 hover:text-gray-800 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         返回
       </button>
 
-      <article className="card-base p-6">
-        <h1 className="text-2xl font-extrabold text-foreground leading-tight">
+      <article className="bg-white rounded-2xl shadow-sm p-6">
+        <h1 className="text-2xl font-extrabold text-gray-900 leading-tight">
           {post.title}
         </h1>
 
@@ -186,7 +187,7 @@ export default function PostDetailPage() {
             {tags.map((tag) => (
               <span
                 key={tag}
-                className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-md"
+                className="text-xs bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md"
               >
                 #{tag}
               </span>
@@ -195,19 +196,19 @@ export default function PostDetailPage() {
         )}
 
         {/* Author row */}
-        <div className="flex items-center justify-between mt-5 py-4 border-t border-b border-border">
+        <div className="flex items-center justify-between mt-5 py-4 border-t border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10">
+            <Avatar className="w-10 h-10 border border-gray-100">
               <AvatarImage src={post.authorAvatar} />
-              <AvatarFallback className="bg-primary/10 text-primary">
+              <AvatarFallback className="bg-blue-50 text-blue-600 font-bold">
                 {post.authorNickname?.charAt(0) || "U"}
               </AvatarFallback>
             </Avatar>
             <div>
-              <p className="text-sm font-medium text-foreground">
+              <p className="text-sm font-medium text-gray-900">
                 {post.authorNickname}
               </p>
-              <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <p className="text-xs text-gray-400 flex items-center gap-2">
                 {post.publishTime && (
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
@@ -221,7 +222,7 @@ export default function PostDetailPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
+          <Button variant="outline" size="sm" className="gap-1.5 rounded-full text-gray-600 border-gray-200 hover:bg-gray-50">
             <Share2 className="w-4 h-4" />
             分享
           </Button>
@@ -233,7 +234,7 @@ export default function PostDetailPage() {
         </div>
 
         {/* Like/Fav bar */}
-        <div className="mt-8 pt-4 border-t border-border">
+        <div className="mt-8 pt-4 border-t border-gray-100">
           <LikeFavBar
             entityId={post.id}
             initialLiked={post.liked}
@@ -247,17 +248,17 @@ export default function PostDetailPage() {
       </article>
 
       {/* Comments */}
-      <div className="mt-3">
+      <div className="mt-4">
         <CommentList postId={Number(post.id)} initialCount={post.commentCount ?? 0} />
       </div>
 
       {/* RAG Q&A */}
-      <div className="card-base p-6 mt-3">
+      <div className="bg-white rounded-2xl shadow-sm p-6 mt-4">
         <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-primary" />
+          <BookOpen className="w-4 h-4 text-blue-600" />
           AI 智能问答
         </h3>
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-xs text-gray-400 mb-3">
           针对本文内容提问，AI 将基于文章内容回答
         </p>
         <div className="flex gap-2">
@@ -274,7 +275,7 @@ export default function PostDetailPage() {
             }}
           />
           <Button
-            className="bg-primary hover:bg-primary/90 text-white shrink-0"
+            className="bg-blue-600 hover:bg-blue-700 text-white shrink-0"
             onClick={handleQA}
             disabled={qaLoading || !question.trim()}
           >
@@ -286,7 +287,7 @@ export default function PostDetailPage() {
           </Button>
         </div>
         {answer && (
-          <div className="mt-3 p-4 bg-muted rounded-lg text-sm leading-relaxed">
+          <div className="mt-3 p-4 bg-gray-50 rounded-xl text-sm leading-relaxed">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
           </div>
         )}

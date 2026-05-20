@@ -1,13 +1,15 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import type { LucideProps } from 'lucide-react';
 import {
   Home, Users, Compass, Search, Bell,
-  Bookmark, User, BookOpen, Settings, Plus, CircleDot
+  Bookmark, User, FileEdit, Settings, Plus, CircleDot,
+  Hash, Flame, Star, Mail, UserPlus, TrendingUp
 } from 'lucide-react';
 
 type NavItem = {
   to: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<LucideProps>;
   label: string;
   exact?: boolean;
   badge?: boolean;
@@ -15,15 +17,19 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/',              icon: Home,       label: '首页',    exact: true },
-  { to: '/following',     icon: Users,      label: '关注' },
-  { to: '/explore',       icon: Compass,    label: '发现' },
-  { to: '/search',        icon: Search,     label: '搜索' },
+  { to: '/following',     icon: UserPlus,   label: '关注' },
   { to: '/circles',       icon: CircleDot,  label: '圈子' },
-  { to: '/notifications', icon: Bell,       label: '消息',    badge: true },
-  { to: '/collections',   icon: Bookmark,   label: '收藏' },
-  { to: '/profile',       icon: User,       label: '我的主页' },
-  { to: '/learn',         icon: BookOpen,   label: '学习' },
-  { to: '/settings',      icon: Settings,   label: '设置' },
+  { to: '/explore',       icon: Flame,      label: '热门' },
+  { to: '/search',        icon: Hash,       label: '话题' },
+  { to: '/collections',   icon: Star,       label: '收藏' },
+  { to: '/notifications', icon: Bell,       label: '通知',    badge: true },
+  { to: '/messages',      icon: Mail,       label: '私信' },
+];
+
+const USER_NAV_ITEMS: NavItem[] = [
+  { to: '/profile',       icon: User,     label: '我的主页' },
+  { to: '/drafts',        icon: FileEdit, label: '草稿箱' },
+  { to: '/settings',      icon: Settings, label: '设置' },
 ];
 
 export default function Sidebar() {
@@ -31,55 +37,60 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   return (
-    <aside className="w-[220px] shrink-0">
-      <div className="flex items-center gap-2.5 px-4 py-4 mb-1">
-        <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-base shrink-0">
-          股
-        </div>
-        <span className="text-[17px] font-bold text-foreground">股知圈</span>
-      </div>
-
-      <nav className="space-y-0.5 px-2">
+    <aside className="w-[240px] flex-shrink-0 sticky top-[88px] flex flex-col h-[calc(100vh-88px)] overflow-y-auto pb-6">
+      <nav className="flex flex-col gap-1">
         {NAV_ITEMS.map(({ to, icon: Icon, label, badge }) => (
           <NavLink
             key={to}
             to={to}
             end={to === '/'}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-[var(--color-sidebar-active)] text-[var(--color-sidebar-active-foreground)]'
-                  : 'text-[#595959] hover:bg-[var(--color-sidebar-border)] hover:text-foreground'
-              }`
-            }
+            children={({ isActive }) => (
+              <div
+                className={`flex items-center justify-between px-4 py-3 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#edf2ff] text-blue-600 font-semibold'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  <span className="text-[15px]">{label}</span>
+                </div>
+                {badge && unreadCount > 0 && (
+                  <span className="bg-red-500 text-white text-[11px] font-bold px-2 py-0.5 rounded-full">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </div>
+            )}
+          />
+        ))}
+      </nav>
+
+      <div className="my-4 border-t border-gray-200 mx-4" />
+
+      <nav className="flex flex-col gap-1">
+        {USER_NAV_ITEMS.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
           >
-            <div className="relative">
-              <Icon className="w-[18px] h-[18px]" />
-              {badge && unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center px-0.5">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </div>
-            <span>{label}</span>
+            <Icon size={20} strokeWidth={2} />
+            <span className="text-[15px]">{label}</span>
           </NavLink>
         ))}
       </nav>
 
       {user && (
-        <div className="mx-3 mt-6">
+        <div className="mt-8 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm mx-2">
+          <h4 className="font-semibold text-[15px] text-gray-800 mb-1">加入圈子，获取更多观点</h4>
+          <p className="text-xs text-gray-500 mb-4">与投资高手一起交流学习</p>
           <button
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-xl text-sm font-medium transition-colors"
             onClick={() => navigate('/circles')}
-            className="w-full flex items-center gap-2 bg-primary/10 hover:bg-primary/15 text-primary text-xs font-medium rounded-xl px-3 py-3 transition-colors"
           >
-            <Plus className="w-4 h-4 shrink-0" />
-            <span>加入圈子，享受更多内容</span>
-          </button>
-          <button
-            onClick={() => navigate('/create')}
-            className="w-full mt-2 bg-primary hover:bg-primary/90 text-white text-sm font-medium rounded-xl px-3 py-2.5 transition-colors"
-          >
-            发布帖子
+            发现圈子
           </button>
         </div>
       )}
