@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, Plus, Bell, Mail, ChevronDown, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useUnreadCount } from '@/features/notification/useUnreadCount';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -15,6 +16,8 @@ import { toast } from 'sonner';
 export function Header() {
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
+  const { data: unread } = useUnreadCount();
+  const unreadCount = unread?.unreadCount ?? 0;
 
   return (
     <header className="sticky top-0 z-50 h-16 border-b border-[var(--color-border)] bg-white px-6">
@@ -54,6 +57,11 @@ export function Header() {
               aria-label="通知"
             >
               <Bell size={22} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border-2 border-white min-w-[18px] text-center leading-none">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
             <button
               type="button"
