@@ -11,7 +11,6 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { formatCount } from '@/lib/formatters';
 import { toast } from 'sonner';
-import type { CircleSummary } from '@/types/circle';
 
 const CATEGORIES = ['全部圈子', '投资策略', '短线交易', '价值投资', '行业研究', '技术分析', '宏观经济'];
 

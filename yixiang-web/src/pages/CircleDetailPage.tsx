@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -9,7 +10,7 @@ import { circleService } from '@/services/circleService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatCount, formatRelativeTime } from '@/lib/formatters';
+import { formatCount } from '@/lib/formatters';
 import { toast } from 'sonner';
 import type { CircleDetail } from '@/types/circle';
 

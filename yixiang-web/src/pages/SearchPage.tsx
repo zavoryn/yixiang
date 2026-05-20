@@ -2,15 +2,15 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Search, X, Flame, RefreshCw, Clock, ChevronDown, ChevronRight,
-  ThumbsUp, MessageCircle, ShieldCheck, Diamond,
+  Search, X, Flame, RefreshCw, Clock, ChevronDown,
+  ThumbsUp, MessageCircle, Diamond,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { searchService } from '@/services/searchService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatRelativeTime, formatCount } from '@/lib/formatters';
+import { formatCount } from '@/lib/formatters';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { FeedItem } from '@/types/knowpost';
 
