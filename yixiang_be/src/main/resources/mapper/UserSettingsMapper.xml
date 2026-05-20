@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.settings.mapper.UserSettingsMapper">
+
+    <resultMap id="UserSettingsResultMap" type="com.tongji.settings.model.UserSettings">
+        <id     column="user_id"           property="userId"/>
+        <result column="notification_pref" property="notificationPrefJson"/>
+        <result column="privacy"           property="privacyJson"/>
+        <result column="theme"             property="theme"/>
+        <result column="language"          property="language"/>
+        <result column="updated_at"        property="updatedAt"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="UserSettingsResultMap">
+        SELECT * FROM user_settings WHERE user_id = #{userId}
+    </select>
+
+    <insert id="upsert" parameterType="com.tongji.settings.model.UserSettings">
+        INSERT INTO user_settings (user_id, notification_pref, privacy, theme, language)
+        VALUES (#{userId}, #{notificationPrefJson}, #{privacyJson}, #{theme}, #{language})
+        ON DUPLICATE KEY UPDATE
+            notification_pref = COALESCE(VALUES(notification_pref), notification_pref),
+            privacy           = COALESCE(VALUES(privacy), privacy),
+            theme             = COALESCE(VALUES(theme), theme),
+            language          = COALESCE(VALUES(language), language),
+            updated_at        = CURRENT_TIMESTAMP(3)
+    </insert>
+
+</mapper>

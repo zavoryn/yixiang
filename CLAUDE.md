@@ -4,33 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-颐享 (YiXiang) — a knowledge-sharing community platform. Two sub-projects: `zhiguang_be` (Spring Boot backend) and `zhiguang_fe` (React frontend).
+颐享 (YiXiang) — a knowledge-sharing community platform. Two sub-projects: `yixiang_be` (Spring Boot backend) and `yixiang_fe` (React frontend).
 
 ---
 
-## zhiguang_be — Backend
+## yixiang_be — Backend
 
-**Stack:** Java 21, Spring Boot 3.2.4, Spring Security + OAuth2 Resource Server (JWT RS256), MyBatis, MySQL 8.0, Redis (Redisson), Elasticsearch 9.x, Kafka, Caffeine, Canal, Spring AI (DeepSeek + OpenAI), Alibaba Cloud OSS
+**Stack:** Java 21, Spring Boot 3.2.4, Spring Security + OAuth2 Resource Server (JWT RS256), MyBatis, MySQL 8.0, Redis (Redisson), Elasticsearch 9.x, Kafka, Caffeine, Canal, Spring AI 1.0.3 (DeepSeek + OpenAI), Alibaba Cloud OSS, Lombok
 
 ### Build & Run
 
 ```bash
-# Build
-cd zhiguang_be && ./mvnw clean package -DskipTests
+# Build (uses system mvn — no Maven wrapper)
+cd yixiang_be && mvn clean package -DskipTests
 
 # Run tests
-./mvnw test                     # all tests
-./mvnw test -Dtest=ClassName    # single test class
+mvn test                     # all tests
+mvn test -Dtest=ClassName    # single test class
 
 # Run app (needs MySQL, Redis, ES, Kafka running)
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
+
+**Setup:** Copy `src/main/resources/application.yml.example` to `application.yml` and fill in credentials. JWT requires a key pair in `src/main/resources/keys/` (public.pem checked in, private.pem gitignored).
 
 Spring Boot entry point: `com.tongji.ZhiGuangApplication` (no custom annotations beyond `@SpringBootApplication`).
 
 ### Architecture (module overview)
 
-The codebase is organized by domain module under `com.tongji`:
+The codebase is organized by domain module under `com.tongji`. Each module follows a layered pattern: `api/` (controllers + DTOs) → `service/` (interfaces + `impl/`) → `mapper/` (MyBatis) → `model/`.
 
 | Module | Package | Responsibility |
 |--------|---------|----------------|
@@ -39,12 +41,13 @@ The codebase is organized by domain module under `com.tongji`:
 | **knowpost** | `com.tongji.knowpost` | CRUD for knowledge posts ("知文"), progressive publish workflow (draft → review → published), Snowflake ID generation, OSS pre-signed URL direct upload for images/video/markdown content |
 | **relation** | `com.tongji.relation` | Follow/unfollow with **Outbox pattern**: writes to `following`/`follower` tables + `outbox` table in same DB transaction, then Canal subscribes to outbox binlog → Kafka → async updates to counters, caches, lists |
 | **search** | `com.tongji.search` | Elasticsearch content indexing, `search_after` cursor pagination, `function_score` mixing BM25 + business weights, `completion` suggester for prefix search. Separate Canal→Kafka consumer for outbox-driven index updates. |
-| **llm** | `com.tongji.llm` | Spring AI integration (DeepSeek/OpenAI), RAG pipeline: check index → vector retrieval → prompt construction → SSE streaming generation. Per-document Q&A with chunked indexing and idempotent deletion. |
-| **profile** | `com.tongji.profile` | User profile CRUD, avatar upload (OSS), tag management |
+| **llm** | `com.tongji.llm` | Spring AI integration (DeepSeek for chat, OpenAI for embeddings), RAG pipeline: check index → vector retrieval → prompt construction → SSE streaming generation. Per-document Q&A with chunked indexing and idempotent deletion. |
+| **profile** | `com.tongji.profile` | User profile CRUD, avatar upload (OSS), tag management. Has its own `CorsConfig` scoped to `/api/v1/profile/**`. |
 | **storage** | `com.tongji.storage` | OSS pre-signed URL generation for direct frontend uploads |
 | **user** | `com.tongji.user` | User domain model, mapper |
 | **cache** | `com.tongji.cache` | Three-tier feed cache (Caffeine local → Redis page → Redis fragment), hotkey detector with sliding window, single-flight lock against thundering herd on cache misses |
-| **common** | `com.tongji.common` | `BusinessException`, `ErrorCode`, `GlobalExceptionHandler` (@RestControllerAdvice) |
+| **common** | `com.tongji.common` | `BusinessException`, `ErrorCode`, `GlobalExceptionHandler` (@RestControllerAdvice), `OutboxMessageUtil` |
+| **config** | `com.tongji.config` | Cross-cutting infrastructure: `ElasticsearchConfig`, `RedissonConfig`, `ThreadPoolConfig` |
 
 ### Key architecture patterns
 
@@ -65,16 +68,16 @@ The codebase is organized by domain module under `com.tongji`:
 
 ---
 
-## zhiguang_fe — Frontend
+## yixiang_fe — Frontend
 
 **Stack:** React 18, TypeScript 5, Vite 5, React Router v6, CSS Modules
 
 ### Commands
 
 ```bash
-cd zhiguang_fe
+cd yixiang_fe
 npm run dev       # Vite dev server on :5173, proxies /api → localhost:8080
-npm run build     # tsc --noEmit + vite build
+npm run build     # tsc && vite build
 npm run lint      # tsc --noEmit (type checking only)
 npm run preview   # preview production build
 ```
@@ -85,7 +88,9 @@ npm run preview   # preview production build
 - **`src/context/AuthContext.tsx`** — Central auth state. Manages tokens (access + refresh + expiry) in localStorage, auto-refreshes on a 60s interval if expiring within 5s, provides `login`/`register`/`logout`/`refresh`/`reloadUser`. Must wrap the app.
 - **`src/types/`** — TypeScript type definitions matching backend DTOs (`auth.ts`, `profile.ts`, `knowpost.ts`, `search.ts`, `content.ts`, `relation.ts`).
 - **`src/pages/`** — Route-level page components: `HomePage` (feed), `SearchPage`, `CreatePage`, `LearningPage`, `ProfilePage`, `EditProfilePage`, `CourseDetailPage` (post detail), `LoginPage`, `RegisterPage`.
-- **`src/components/`** — Reusable UI: `layout/` (AppLayout, MainHeader, Sidebar), `common/` (LikeFavBar, FollowButton, SearchBar, TagInput, RelationListModal, UserBadge), `cards/` (CourseCard), `icons/`.
+- **`src/components/`** — Reusable UI: `layout/` (AppLayout, MainHeader, Sidebar), `common/` (LikeFavBar, FollowButton, SearchBar, TagInput, RelationListModal, UserBadge), `cards/` (CourseCard), `icons/`, `home/` (CommunityStats, HeroBanner, TrendingTags), `learn/` (LearningPathCard, ProgressRing).
+- **`src/features/auth/`** — `AuthStatus` component with its CSS Module.
+- **`src/styles/`** — Shared CSS: `animations.css`, `skeleton.css`.
 - **`src/theme/`** — Design tokens and theme config.
 - **Path alias:** `@/` maps to `src/` (configured in both `tsconfig.json` and `vite.config.ts`).
 - **Styling:** CSS Modules (`.module.css` files colocated with components).

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.topic.mapper.TopicMapper">
+
+    <resultMap id="TopicResultMap" type="com.tongji.topic.model.Topic">
+        <id     column="tag"          property="tag"/>
+        <result column="post_count"   property="postCount"/>
+        <result column="view_count"   property="viewCount"/>
+        <result column="last_used_at" property="lastUsedAt"/>
+    </resultMap>
+
+    <select id="listHot" resultMap="TopicResultMap">
+        SELECT * FROM topics
+        ORDER BY post_count DESC, last_used_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findByTag" resultMap="TopicResultMap">
+        SELECT * FROM topics WHERE tag = #{tag}
+    </select>
+
+    <insert id="upsertOnPost">
+        INSERT INTO topics (tag, post_count, view_count, last_used_at)
+        VALUES (#{tag}, 1, 0, CURRENT_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE
+            post_count   = post_count + 1,
+            last_used_at = CURRENT_TIMESTAMP(3)
+    </insert>
+
+    <update id="incrementViewBatch">
+        <foreach collection="deltas" index="tag" item="delta" separator=";">
+            UPDATE topics SET view_count = view_count + #{delta} WHERE tag = #{tag}
+        </foreach>
+    </update>
+
+</mapper>
