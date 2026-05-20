@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.comment.mapper.CommentMapper">
+
+    <insert id="insert">
+        INSERT INTO comments (id, post_id, user_id, content, parent_id, reply_to_user_id, status, created_at, updated_at)
+        VALUES (#{id}, #{postId}, #{userId}, #{content}, #{parentId}, #{replyToUserId}, 1, NOW(3), NOW(3))
+    </insert>
+
+    <update id="softDelete">
+        UPDATE comments SET status = 0, updated_at = NOW(3)
+        WHERE id = #{id} AND user_id = #{userId} AND status = 1
+    </update>
+
+    <select id="findById" resultType="map">
+        SELECT id, post_id AS postId, user_id AS userId, content, parent_id AS parentId,
+               reply_to_user_id AS replyToUserId, status, created_at AS createdAt
+        FROM comments WHERE id = #{id}
+    </select>
+
+    <select id="listByPostId" resultType="map">
+        SELECT c.id, c.post_id AS postId, c.user_id AS userId, c.content,
+               c.parent_id AS parentId, c.reply_to_user_id AS replyToUserId,
+               c.created_at AS createdAt,
+               u.nickname, u.avatar,
+               (SELECT COUNT(1) FROM comments r WHERE r.parent_id = c.id AND r.status = 1) AS replyCount
+        FROM comments c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.post_id = #{postId} AND c.parent_id IS NULL AND c.status = 1
+        <if test="createdAt != null and id != null">
+            AND (c.created_at, c.id) &lt; (#{createdAt}, #{id})
+        </if>
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT #{size}
+    </select>
+
+    <select id="listReplies" resultType="map">
+        SELECT c.id, c.post_id AS postId, c.user_id AS userId, c.content,
+               c.parent_id AS parentId, c.reply_to_user_id AS replyToUserId,
+               c.created_at AS createdAt,
+               u.nickname, u.avatar,
+               ru.nickname AS replyToNickname
+        FROM comments c
+        JOIN users u ON u.id = c.user_id
+        LEFT JOIN users ru ON ru.id = c.reply_to_user_id
+        WHERE c.parent_id = #{parentId} AND c.status = 1
+        <if test="createdAt != null and id != null">
+            AND (c.created_at, c.id) &lt; (#{createdAt}, #{id})
+        </if>
+        ORDER BY c.created_at ASC, c.id ASC
+        LIMIT #{size}
+    </select>
+
+    <select id="countReplies" resultType="int">
+        SELECT COUNT(1) FROM comments WHERE parent_id = #{parentId} AND status = 1
+    </select>
+
+</mapper>

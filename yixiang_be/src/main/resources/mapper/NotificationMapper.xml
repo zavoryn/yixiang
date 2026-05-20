@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.notification.mapper.NotificationMapper">
+
+    <insert id="insert">
+        INSERT INTO notifications (id, recipient_id, actor_id, type, entity_type, entity_id, content, is_read, created_at)
+        VALUES (#{id}, #{recipientId}, #{actorId}, #{type}, #{entityType}, #{entityId}, #{content}, 0, NOW(3))
+    </insert>
+
+    <select id="listByRecipient" resultType="com.tongji.notification.model.Notification">
+        SELECT id, recipient_id AS recipientId, actor_id AS actorId, type, entity_type AS entityType,
+               entity_id AS entityId, content, is_read AS isRead, created_at AS createdAt
+        FROM notifications
+        WHERE recipient_id = #{recipientId}
+        <if test="type != null">AND type = #{type}</if>
+        <if test="lastId != null">AND id &lt; #{lastId}</if>
+        ORDER BY id DESC
+        LIMIT #{size}
+    </select>
+
+    <select id="countUnread" resultType="int">
+        SELECT COUNT(1) FROM notifications
+        WHERE recipient_id = #{recipientId} AND is_read = 0
+    </select>
+
+    <update id="markAllRead">
+        UPDATE notifications SET is_read = 1
+        WHERE recipient_id = #{recipientId} AND is_read = 0
+    </update>
+
+    <update id="markOneRead">
+        UPDATE notifications SET is_read = 1
+        WHERE id = #{id} AND recipient_id = #{recipientId}
+    </update>
+
+</mapper>

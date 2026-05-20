@@ -1,0 +1,30 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Tool configs (local only)
+.claude/
+.superpowers/
+.playwright-mcp/
+
+# Dependencies
+node_modules/
+
+# Build output
+target/
+dist/
+build/
+
+# Environment
+.env
+.env.local

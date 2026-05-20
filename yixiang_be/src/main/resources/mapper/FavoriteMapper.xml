@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.counter.favorite.FavoriteMapper">
+
+    <insert id="insert">
+        INSERT IGNORE INTO user_favorites (id, user_id, post_id, created_at)
+        VALUES (#{id}, #{userId}, #{postId}, NOW(3))
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM user_favorites WHERE user_id = #{userId} AND post_id = #{postId}
+    </delete>
+
+    <select id="listPostIds" resultType="long">
+        SELECT post_id FROM user_favorites
+        WHERE user_id = #{userId}
+        <if test="lastId != null">AND id &lt; #{lastId}</if>
+        ORDER BY id DESC
+        LIMIT #{size}
+    </select>
+
+</mapper>
