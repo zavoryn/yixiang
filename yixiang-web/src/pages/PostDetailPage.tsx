@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ThumbsUp, MessageCircle, Share2, MoreHorizontal,
-  CheckCircle2, ChevronRight, ChevronDown, Star, Image as ImageIcon,
+  CheckCircle2, Star, Image as ImageIcon,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
@@ -24,7 +24,7 @@ export default function PostDetailPage() {
   const { isAuthenticated } = useAuth();
   const [commentText, setCommentText] = useState('');
 
-  const { data: post, isLoading, error, refetch } = useQuery<KnowpostDetailResponse>({
+  const { data: post, isLoading, error } = useQuery<KnowpostDetailResponse>({
     queryKey: ['knowpost', 'detail', id],
     queryFn: () => knowpostService.detail(id!, isAuthenticated ? undefined : undefined),
     enabled: !!id,

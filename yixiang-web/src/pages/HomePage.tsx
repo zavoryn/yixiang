@@ -6,15 +6,13 @@ import {
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
-import { relationService } from '@/services/relationService';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatCount, formatRelativeTime } from '@/lib/formatters';
+import { formatCount } from '@/lib/formatters';
 import { toast } from 'sonner';
 import type { FeedItem } from '@/types/knowpost';
-import type { ProfileResponse } from '@/types/profile';
 
 const FEED_TABS = ['推荐', '关注', '最新'];
 
@@ -39,7 +37,6 @@ const MOCK_TOPICS = [
 export default function HomePage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState('推荐');
   const [page, setPage] = useState(1);
 

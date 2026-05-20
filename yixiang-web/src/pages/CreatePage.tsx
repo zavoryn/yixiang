@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, ChevronDown, Bold, Italic, Underline, List, TextQuote, Code,
   Image as ImageIcon, PlaySquare, Globe, Lock, Save, ImagePlus,
@@ -13,7 +13,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/common/EmptyState';
-import { Skeleton } from '@/components/ui/skeleton';
 
 const MOCK_DRAFTS = [
   { id: 1, title: '半导体板块还能走多远?', time: '更新于 2小时前', icon: BarChart2, color: 'bg-blue-50 text-blue-600' },
