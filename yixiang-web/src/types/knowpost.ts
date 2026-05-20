@@ -96,6 +96,8 @@ export type KnowpostDetailResponse = {
   visible: "public" | "followers" | "school" | "private" | "unlisted";
   type: "image_text" | string;
   publishTime?: string;
+  recentLikers?: UserBrief[];
+  likerSummary?: string;
 };
 
 // 点赞/取消点赞 响应
