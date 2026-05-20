@@ -68,35 +68,46 @@ The codebase is organized by domain module under `com.tongji`. Each module follo
 
 ---
 
-## yixiang_fe — Frontend
+## yixiang-web — Frontend (new)
 
-**Stack:** React 18, TypeScript 5, Vite 5, React Router v6, CSS Modules
+**Stack:** React 18, TypeScript 5, Vite 5, Tailwind CSS v4, shadcn/ui (Radix), TanStack Query v5, React Router v6, lucide-react, sonner, date-fns, react-hook-form + zod, Vitest
 
 ### Commands
 
 ```bash
-cd yixiang_fe
+cd yixiang-web
 npm run dev       # Vite dev server on :5173, proxies /api → localhost:8080
-npm run build     # tsc && vite build
+npm run build     # tsc --noEmit + vite build
 npm run lint      # tsc --noEmit (type checking only)
 npm run preview   # preview production build
+npm run test      # vitest --run
 ```
 
 ### Architecture
 
-- **`src/services/`** — API client layer. `apiClient.ts` provides a generic `apiFetch<T>()` function that auto-attaches JWT Bearer tokens from localStorage (`yixiang_auth_tokens`), handles CSRF tokens, and throws typed `ApiError`. Domain-specific services (`authService`, `knowpostService`, `profileService`, `relationService`, `searchService`) build on this.
-- **`src/context/AuthContext.tsx`** — Central auth state. Manages tokens (access + refresh + expiry) in localStorage, auto-refreshes on a 60s interval if expiring within 5s, provides `login`/`register`/`logout`/`refresh`/`reloadUser`. Must wrap the app.
-- **`src/types/`** — TypeScript type definitions matching backend DTOs (`auth.ts`, `profile.ts`, `knowpost.ts`, `search.ts`, `content.ts`, `relation.ts`).
-- **`src/pages/`** — Route-level page components: `HomePage` (feed), `SearchPage`, `CreatePage`, `LearningPage`, `ProfilePage`, `EditProfilePage`, `CourseDetailPage` (post detail), `LoginPage`, `RegisterPage`.
-- **`src/components/`** — Reusable UI: `layout/` (AppLayout, MainHeader, Sidebar), `common/` (LikeFavBar, FollowButton, SearchBar, TagInput, RelationListModal, UserBadge), `cards/` (CourseCard), `icons/`, `home/` (CommunityStats, HeroBanner, TrendingTags), `learn/` (LearningPathCard, ProgressRing).
-- **`src/features/auth/`** — `AuthStatus` component with its CSS Module.
-- **`src/styles/`** — Shared CSS: `animations.css`, `skeleton.css`.
-- **`src/theme/`** — Design tokens and theme config.
-- **Path alias:** `@/` maps to `src/` (configured in both `tsconfig.json` and `vite.config.ts`).
-- **Styling:** CSS Modules (`.module.css` files colocated with components).
+- **`src/app/`** — App entry, routes (`routes.tsx`), global providers (`providers.tsx`), `ProtectedRoute`
+- **`src/pages/`** — 12 route-level pages: HomePage, SearchPage, CreatePage, ProfilePage, EditProfilePage, PostDetailPage, LoginPage, RegisterPage, CircleSquarePage, CircleDetailPage, FollowListPage, NotificationPage, CollectionsPage
+- **`src/components/`** — `layout/` (AppLayout, Header, Sidebar, PageShell), `ui/` (shadcn primitives: Button, Dialog, Tabs, Tooltip, Popover, Select, DropdownMenu, Avatar, Badge, Input, Textarea, Skeleton), `common/` (EmptyState, LoadingSkeleton, ErrorBoundary, InfiniteList), `user/` (FollowButton)
+- **`src/features/`** — Business hooks (useQuery/useMutation + optimistic update): `profile/useProfile`, `relation/useFollow`/`useUnfollow`, `notification/useNotifications`/`useUnreadCount`
+- **`src/services/`** — Thin API client layer: authService, knowpostService, profileService, relationService, searchService, notificationService, favoriteService, circleService, commentService
+- **`src/types/`** — Backend DTO types
+- **`src/lib/`** — `apiClient` (JWT auto-attach + 401 refresh), `queryClient` (staleTime 30s), `formatters`, `utils`, `sse`
+- **`src/config/`** — Feature flags (`features.ts`), env config (`env.ts`)
+- **`src/hooks/`** — Generic hooks: `useDebounce`
+- **`src/styles/`** — `globals.css` (Tailwind + @theme tokens), `scrollbar.css`
+- **Path alias:** `@/` maps to `src/`
 
 ### Key flows
 
-- **Auth guard:** Routes that need login check for `tokens` in context; public routes (feed, detail, search) render regardless.
-- **API calls:** All go through service functions → `apiFetch` → token auto-attach → error handling. SSE streaming (RAG Q&A) handled directly with `fetch` + `ReadableStream` in the detail page.
-- **State:** No global state library — React Context for auth, local `useState`/`useEffect` for page-level state. Props drilling for component state.
+- **Auth guard:** `ProtectedRoute` wraps routes that need login; public routes (feed, detail, search) render regardless.
+- **API calls:** All go through `services/` → `apiFetch<T>()` → JWT Bearer auto-attach → 401 auto-refresh → typed error throw.
+- **State:** TanStack Query for server state (useQuery/useMutation + optimistic update), React Context for auth (AuthContext), local useState for UI state.
+- **Optimistic updates:** Follow/unfollow, like/fav use `onMutate` → `setQueryData` → `onError` rollback → `onSettled` invalidateQueries pattern.
+
+---
+
+## yixiang_fe — Frontend (legacy)
+
+**This project is superseded by `yixiang-web/` and will be deleted.**
+
+Stack: React 18, TypeScript 5, Vite 5, React Router v6, CSS Modules
