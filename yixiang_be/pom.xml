@@ -249,7 +249,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.tongji.ZhiGuangApplication</mainClass>
+                    <mainClass>com.tongji.YiXiangApplication</mainClass>
                 </configuration>
             </plugin>
         </plugins>
