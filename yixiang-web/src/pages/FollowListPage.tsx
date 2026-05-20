@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { UserCheck, Users, UserPlus } from 'lucide-react';
+import { UserCheck, Users } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAuth } from '@/context/AuthContext';
 import { useFollow } from '@/features/relation/useFollow';

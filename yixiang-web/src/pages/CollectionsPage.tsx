@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Search, ChevronDown, MoreHorizontal, ThumbsUp, MessageCircle,
   CheckCircle2, Star, ChevronRight, ArrowUpRight,
-  FileText, TrendingUp, Zap, Globe, BarChart2, BookOpen, PlusCircle,
+  FileText, TrendingUp, Zap, Globe, BarChart2, BookOpen,
   LayoutGrid, List as ListIcon,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
@@ -13,7 +13,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { formatCount } from '@/lib/formatters';
-import type { FeedItem } from '@/types/knowpost';
 
 type TabKey = '全部收藏' | '帖子' | '话题' | '用户';
 

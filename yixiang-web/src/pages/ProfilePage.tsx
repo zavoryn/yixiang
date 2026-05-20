@@ -4,18 +4,19 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Share, ThumbsUp, MessageCircle, MoreHorizontal, ChevronRight, ChevronDown,
   Clock, MapPin, Briefcase, Calendar, BarChart2, ArrowUp, Shield, Award, Zap,
-  TrendingUp, FileText
+  FileText
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAuth } from '@/context/AuthContext';
 import { useProfile } from '@/features/profile/useProfile';
 import { profileService } from '@/services/profileService';
 import { knowpostService } from '@/services/knowpostService';
+import { favoriteService } from '@/services/favoriteService';
 import { relationService } from '@/services/relationService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatRelativeTime, formatCount } from '@/lib/formatters';
+import { formatCount } from '@/lib/formatters';
 import type { FeedItem } from '@/types/knowpost';
 import type { RelationCountersResponse } from '@/types/relation';
 
@@ -52,7 +53,7 @@ export default function ProfilePage() {
   const { data: postsData, isLoading: postsLoading } = useQuery({
     queryKey: ['knowposts', 'mine', page],
     queryFn: () => knowpostService.mine(page, 20),
-    enabled: isOwnProfile && activeTab === '我的帖子',
+    enabled: !!(isOwnProfile && activeTab === '我的帖子'),
   });
 
   // Fetch liked posts
@@ -65,11 +66,8 @@ export default function ProfilePage() {
   // Fetch favorites
   const { data: favoritesData, isLoading: favsLoading } = useQuery({
     queryKey: ['favorites', page],
-    queryFn: async () => {
-      const { favoriteService } = await import('@/services/favoriteService');
-      return favoriteService.list(undefined, 20);
-    },
-    enabled: isOwnProfile && activeTab === '我的收藏',
+    queryFn: () => favoriteService.list(undefined, 20),
+    enabled: !!(isOwnProfile && activeTab === '我的收藏'),
   });
 
   const displayPosts: FeedItem[] = (() => {

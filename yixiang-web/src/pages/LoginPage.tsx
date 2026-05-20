@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   User, Lock, EyeOff, Eye, MessageCircle, Users, GraduationCap,
-  ShieldCheck, TrendingUp, ChevronRight
+  ShieldCheck, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';

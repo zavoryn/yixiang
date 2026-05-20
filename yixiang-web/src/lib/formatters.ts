@@ -1,5 +1,4 @@
-import { formatDistanceToNow, format, differenceInMinutes, differenceInHours } from 'date-fns';
-import { zhCN } from 'date-fns/locale/zh-CN';
+import { format, differenceInMinutes, differenceInHours } from 'date-fns';
 
 export function formatRelativeTime(isoString: string): string {
   const date = new Date(isoString);
