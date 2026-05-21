@@ -33,6 +33,11 @@ public interface KnowPostMapper {
                                                                               @Param("limit") int limit,
                                                                               @Param("offset") int offset);
 
+    // 某用户公开已发布知文列表。
+    List<KnowPostFeedRow> listUserPublished(@Param("creatorId") long creatorId,
+                                            @Param("limit") int limit,
+                                            @Param("offset") int offset);
+
     // 设置置顶
     int updateTop(@Param("id") Long id, @Param("creatorId") Long creatorId, @Param("isTop") Boolean isTop);
 

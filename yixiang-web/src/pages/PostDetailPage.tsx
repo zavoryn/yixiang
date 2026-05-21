@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   ArrowLeft, ThumbsUp, MessageCircle, Share2, MoreHorizontal,
   CheckCircle2, Star, Image as ImageIcon,
@@ -13,6 +15,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { formatCount, formatRelativeTime } from '@/lib/formatters';
 import { useAuth } from '@/context/AuthContext';
+import { buildSseUrl } from '@/lib/sse';
 import { toast } from 'sonner';
 import type { KnowpostDetailResponse } from '@/types/knowpost';
 import type { CommentDTO } from '@/types/comment';
@@ -21,13 +24,26 @@ export default function PostDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, tokens } = useAuth();
   const [commentText, setCommentText] = useState('');
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [isAsking, setIsAsking] = useState(false);
 
   const { data: post, isLoading, error } = useQuery<KnowpostDetailResponse>({
     queryKey: ['knowpost', 'detail', id],
-    queryFn: () => knowpostService.detail(id!, isAuthenticated ? undefined : undefined),
+    queryFn: () => knowpostService.detail(id!, tokens?.accessToken),
     enabled: !!id,
+  });
+
+  const { data: postContent } = useQuery({
+    queryKey: ['knowpost', 'content', post?.contentUrl],
+    queryFn: async () => {
+      const resp = await fetch(post!.contentUrl);
+      if (!resp.ok) throw new Error('正文加载失败');
+      return resp.text();
+    },
+    enabled: !!post?.contentUrl,
   });
 
   const { data: commentsData } = useQuery({
@@ -67,6 +83,28 @@ export default function PostDetailPage() {
   });
 
   const comments = commentsData?.items ?? [];
+
+  const askQuestion = () => {
+    const q = question.trim();
+    if (!q || !id) return;
+    setAnswer('');
+    setIsAsking(true);
+    const url = buildSseUrl(
+      `/api/v1/knowposts/${id}/qa/stream?question=${encodeURIComponent(q)}&topK=5&maxTokens=1024`,
+      tokens?.accessToken ?? null,
+    );
+    const es = new EventSource(url);
+    es.onmessage = (event) => setAnswer((prev) => prev + event.data);
+    es.addEventListener('done', () => {
+      setIsAsking(false);
+      es.close();
+    });
+    es.onerror = () => {
+      setIsAsking(false);
+      es.close();
+      toast.error('AI 问答连接失败');
+    };
+  };
 
   if (isLoading) {
     return (
@@ -135,8 +173,10 @@ export default function PostDetailPage() {
 
           {/* Content */}
           <div className="flex justify-between items-start gap-4 mb-4">
-            <div className="text-gray-700 text-[15px] leading-relaxed">
-              <p>{post.description}</p>
+            <div className="prose prose-sm max-w-none text-gray-700 text-[15px] leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {postContent ?? post.description}
+              </ReactMarkdown>
             </div>
             {post.images?.[0] && (
               <img src={post.images[0]} className="w-40 h-24 object-cover rounded-lg border border-gray-100" />
@@ -188,6 +228,33 @@ export default function PostDetailPage() {
             </button>
           </div>
         </article>
+
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h3 className="font-bold text-gray-800 mb-4">AI 帖子问答</h3>
+          <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg p-2">
+            <input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') askQuestion();
+              }}
+              placeholder="输入你的问题..."
+              className="flex-1 bg-transparent border-none focus:outline-none text-sm px-2"
+            />
+            <button
+              onClick={askQuestion}
+              disabled={!question.trim() || isAsking}
+              className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isAsking ? '生成中...' : '提问'}
+            </button>
+          </div>
+          {answer && (
+            <div className="mt-4 rounded-lg bg-blue-50 border border-blue-100 p-4 text-sm text-gray-700 whitespace-pre-wrap">
+              {answer}
+            </div>
+          )}
+        </section>
 
         {/* Comment section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">

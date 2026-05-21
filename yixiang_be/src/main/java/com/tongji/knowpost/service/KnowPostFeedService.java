@@ -10,5 +10,7 @@ public interface KnowPostFeedService {
 
     FeedPageResponse getMyPublished(long userId, int page, int size);
 
+    FeedPageResponse getUserPublished(long userId, int page, int size, Long viewerUserId);
+
     FeedPageResponse getLikedFeed(long ownerUserId, Long viewerUserId, int page, int size);
 }

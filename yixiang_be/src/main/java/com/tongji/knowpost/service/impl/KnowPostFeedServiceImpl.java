@@ -471,6 +471,22 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
     }
 
     @Override
+    public FeedPageResponse getUserPublished(long userId, int page, int size, Long viewerUserId) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        int safePage = Math.max(page, 1);
+        int offset = (safePage - 1) * safeSize;
+
+        List<KnowPostFeedRow> rows = mapper.listUserPublished(userId, safeSize + 1, offset);
+        boolean hasMore = rows.size() > safeSize;
+        if (hasMore) {
+            rows = rows.subList(0, safeSize);
+        }
+
+        List<FeedItemResponse> items = mapRowsToItems(rows, viewerUserId, false);
+        return new FeedPageResponse(items, safePage, safeSize, hasMore);
+    }
+
+    @Override
     public FeedPageResponse getLikedFeed(long ownerUserId, Long viewerUserId, int page, int size) {
         int safeSize = Math.min(Math.max(size, 1), 50);
         int safePage = Math.max(page, 1);

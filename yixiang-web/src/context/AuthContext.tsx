@@ -128,8 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const updated: TokensState = {
           accessToken: next.accessToken,
           refreshToken: next.refreshToken,
-          accessTokenExpiresAt: next.accessExpiresAt?.toString() ?? tokensRef.current?.accessTokenExpiresAt ?? '',
-          refreshTokenExpiresAt: tokensRef.current?.refreshTokenExpiresAt ?? '',
+          accessTokenExpiresAt: next.accessTokenExpiresAt,
+          refreshTokenExpiresAt: next.refreshTokenExpiresAt,
         };
         setTokens(updated);
         writeStored(updated, user);

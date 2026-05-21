@@ -66,6 +66,13 @@ export const knowpostService = {
     apiFetch<FeedResponse>(`${KNOWPOST_PREFIX}/mine?page=${page}&size=${size}`)
   ,
 
+  // 获取某用户公开知文
+  userPosts: (userId: number, page = 1, size = 20) =>
+    apiFetch<FeedResponse>(`${KNOWPOST_PREFIX}/users/${userId}?page=${page}&size=${size}`, {
+      skipAuth: true,
+    })
+  ,
+
   // 获取知文详情（公开内容无需鉴权；非公开需要作者凭证）
   detail: (id: string, accessToken?: string) =>
     apiFetch<KnowpostDetailResponse>(`${KNOWPOST_PREFIX}/detail/${id}`, {
@@ -135,8 +142,29 @@ export async function uploadToPresigned(putUrl: string, headers: Record<string, 
 }
 
 export async function computeSha256(file: File) {
-  const buf = await file.arrayBuffer();
+  const buf = typeof file.arrayBuffer === "function"
+    ? await file.arrayBuffer()
+    : await new Response(file).arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", buf);
   const hex = Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
   return hex;
+}
+
+export async function uploadMarkdownContent(postId: string, markdown: string) {
+  const file = new File([markdown], `${postId}.md`, { type: "text/markdown;charset=utf-8" });
+  const sha256 = await computeSha256(file);
+  const presign = await knowpostService.presign({
+    scene: "knowpost_content",
+    postId,
+    contentType: file.type,
+    ext: ".md",
+  });
+  const uploaded = await uploadToPresigned(presign.putUrl, presign.headers, file);
+  await knowpostService.confirmContent(postId, {
+    objectKey: presign.objectKey,
+    etag: uploaded.etag,
+    size: file.size,
+    sha256,
+  });
+  return presign.objectKey;
 }

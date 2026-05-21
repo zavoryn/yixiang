@@ -34,8 +34,9 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
 
-  const isOwnProfile = !id || (user && String(user.id) === id);
+  const isOwnProfile = !id || (user != null && String(user.id) === id);
   const profileUserId = isOwnProfile ? user?.id : (id ? Number(id) : undefined);
+  const visibleTabs = isOwnProfile ? TABS : TABS.filter((tab) => tab !== '草稿箱');
 
   const { data: profile, isLoading, error, refetch } = useProfile(profileUserId);
   const [activeTab, setActiveTab] = useState<TabKey>('我的帖子');
@@ -51,9 +52,11 @@ export default function ProfilePage() {
 
   // Fetch posts (my posts tab)
   const { data: postsData, isLoading: postsLoading } = useQuery({
-    queryKey: ['knowposts', 'mine', page],
-    queryFn: () => knowpostService.mine(page, 20),
-    enabled: !!(isOwnProfile && activeTab === '我的帖子'),
+    queryKey: ['knowposts', 'user', profileUserId, page],
+    queryFn: () => isOwnProfile
+      ? knowpostService.mine(page, 20)
+      : knowpostService.userPosts(profileUserId!, page, 20),
+    enabled: profileUserId != null && activeTab === '我的帖子',
   });
 
   // Fetch liked posts
@@ -193,7 +196,7 @@ export default function ProfilePage() {
         {/* Tabs + Post list */}
         <div className="bg-white rounded-2xl shadow-sm flex-1 min-h-[500px]">
           <div className="flex border-b border-gray-100 px-6 pt-2">
-            {TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => { setActiveTab(tab); setPage(1); }}
@@ -285,8 +288,9 @@ export default function ProfilePage() {
             <div className="py-16">
               <EmptyState
                 icon={FileText}
-                title="即将上线"
-                description={`${activeTab}功能正在开发中，敬请期待`}
+                title={activeTab === '草稿箱' ? '草稿箱已迁移' : '暂未接入'}
+                description={activeTab === '草稿箱' ? '草稿列表已在独立页面管理' : `${activeTab}需要后端聚合接口后展示`}
+                action={activeTab === '草稿箱' ? <Button onClick={() => navigate('/drafts')}>查看草稿箱</Button> : undefined}
               />
             </div>
           )}

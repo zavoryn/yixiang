@@ -10,12 +10,23 @@ export interface UseSSEOptions {
   onOpen?: () => void;
 }
 
+export function buildSseUrl(path: string, accessToken: string | null): string {
+  const base = env.apiBaseUrl.endsWith('/') ? env.apiBaseUrl.slice(0, -1) : env.apiBaseUrl;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  const fullPath = normalizedPath.startsWith(`${base}/`) || normalizedPath === base
+    ? normalizedPath
+    : `${base}${normalizedPath}`;
+  const url = new URL(fullPath, window.location.origin);
+  if (accessToken) url.searchParams.set('access_token', accessToken);
+  return url.pathname + url.search + url.hash;
+}
+
 export function useSSE({ url, withCredentials = false, enabled = true, onMessage, onError, onOpen }: UseSSEOptions) {
   const sourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
-    const full = url.startsWith('http') ? url : `${env.apiBaseUrl}${url}`;
+    const full = url.startsWith('http') ? url : buildSseUrl(url, null);
     const source = new EventSource(full, { withCredentials });
     sourceRef.current = source;
     if (onMessage) source.onmessage = onMessage;

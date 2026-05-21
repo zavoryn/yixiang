@@ -13,6 +13,8 @@ import CircleSquarePage from '@/pages/CircleSquarePage';
 import CircleDetailPage from '@/pages/CircleDetailPage';
 import PostDetailPage from '@/pages/PostDetailPage';
 import CreatePage from '@/pages/CreatePage';
+import DraftsPage from '@/pages/DraftsPage';
+import SettingsPage from '@/pages/SettingsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 export function AppRoutes() {
@@ -26,7 +28,6 @@ export function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/hot" element={<HomePage />} />
-        <Route path="/topics" element={<HomePage />} />
         <Route path="/posts/:id" element={<PostDetailPage />} />
         <Route path="/circles" element={<CircleSquarePage />} />
         <Route path="/circles/:id" element={<CircleDetailPage />} />
@@ -41,8 +42,8 @@ export function AppRoutes() {
           <Route path="/profile/:tab" element={<ProfilePage />} />
           <Route path="/followlist" element={<FollowListPage />} />
           <Route path="/create" element={<CreatePage />} />
-          <Route path="/drafts" element={<CreatePage />} />
-          <Route path="/settings" element={<CreatePage />} />
+          <Route path="/drafts" element={<DraftsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

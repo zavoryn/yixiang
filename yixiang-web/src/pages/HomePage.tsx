@@ -6,33 +6,19 @@ import {
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
+import { activityService } from '@/services/activityService';
+import { hotService } from '@/services/hotService';
+import { recommendService } from '@/services/recommendService';
+import { topicService } from '@/services/topicService';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatCount } from '@/lib/formatters';
+import { formatCount, formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
 import type { FeedItem } from '@/types/knowpost';
 
 const FEED_TABS = ['推荐', '关注', '最新'];
-
-const MOCK_ACTIVITIES = [
-  { id: 1, user: 'A股老张', action: '发布了新帖子', time: '2小时前', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026024d' },
-  { id: 2, user: '林夕看盘', action: '回复了评论', time: '3小时前', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
-  { id: 3, user: 'TechAlpha', action: '点赞了帖子', time: '5小时前', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
-];
-
-const MOCK_CIRCLES = [
-  { id: 1, name: 'A股老张实战圈', members: 1280, avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026024d' },
-  { id: 2, name: '林夕看盘·价值投资圈', members: 860, avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
-  { id: 3, name: 'TechAlpha量化研究社', members: 520, avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
-];
-
-const MOCK_TOPICS = [
-  { id: 1, title: '宁德时代Q3财报解读', views: '3.2w' },
-  { id: 2, title: 'A股保卫战', views: '2.8w' },
-  { id: 3, title: '半导体主线还能走多远?', views: '1.5w' },
-];
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -41,8 +27,12 @@ export default function HomePage() {
   const [page, setPage] = useState(1);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['feed', page],
-    queryFn: () => knowpostService.feed(page, 10),
+    queryKey: ['feed', activeTab, page],
+    queryFn: () => {
+      if (activeTab === '推荐') return knowpostService.feed(page, 10);
+      if (activeTab === '最新') return hotService.posts('24h', undefined, 10);
+      return Promise.resolve({ items: [], page, size: 10, hasMore: false });
+    },
   });
 
   const posts = data?.items ?? [];
@@ -104,9 +94,9 @@ export default function HomePage() {
           <div className="bg-white p-8 rounded-b-2xl">
             <EmptyState
               icon={Star}
-              title="暂无内容"
-              description="还没有人发布帖子，来写第一篇吧"
-              action={isAuthenticated ? <Button onClick={() => navigate('/create')}>发布帖子</Button> : undefined}
+              title={activeTab === '关注' ? '关注流待接入' : '暂无内容'}
+              description={activeTab === '关注' ? '关注动态接口已接入，按帖子聚合的关注流还需要后端专用接口。' : '还没有人发布帖子，来写第一篇吧'}
+              action={isAuthenticated && activeTab !== '关注' ? <Button onClick={() => navigate('/create')}>发布帖子</Button> : undefined}
             />
           </div>
         ) : (
@@ -117,6 +107,8 @@ export default function HomePage() {
                 post={post}
                 isLast={i === posts.length - 1}
                 onClick={() => navigate(`/posts/${post.id}`)}
+                activeTab={activeTab}
+                page={page}
               />
             ))}
           </div>
@@ -126,7 +118,7 @@ export default function HomePage() {
   );
 }
 
-function FeedCard({ post, isLast, onClick }: { post: FeedItem; isLast: boolean; onClick: () => void }) {
+function FeedCard({ post, isLast, onClick, activeTab, page }: { post: FeedItem; isLast: boolean; onClick: () => void; activeTab: string; page: number }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { isAuthenticated } = useAuth();
@@ -134,7 +126,7 @@ function FeedCard({ post, isLast, onClick }: { post: FeedItem; isLast: boolean; 
   const likeMut = useMutation({
     mutationFn: () => post.liked ? knowpostService.unlike(post.id) : knowpostService.like(post.id),
     onMutate: () => {
-      qc.setQueryData<{ items: FeedItem[] }>(['feed'], (old) => {
+      qc.setQueryData<{ items: FeedItem[] }>(['feed', activeTab, page], (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -144,13 +136,13 @@ function FeedCard({ post, isLast, onClick }: { post: FeedItem; isLast: boolean; 
         };
       });
     },
-    onError: () => qc.invalidateQueries({ queryKey: ['feed'] }),
+    onError: () => qc.invalidateQueries({ queryKey: ['feed', activeTab, page] }),
   });
 
   const favMut = useMutation({
     mutationFn: () => post.faved ? knowpostService.unfav(post.id) : knowpostService.fav(post.id),
     onMutate: () => {
-      qc.setQueryData<{ items: FeedItem[] }>(['feed'], (old) => {
+      qc.setQueryData<{ items: FeedItem[] }>(['feed', activeTab, page], (old) => {
         if (!old) return old;
         return {
           ...old,
@@ -160,7 +152,7 @@ function FeedCard({ post, isLast, onClick }: { post: FeedItem; isLast: boolean; 
         };
       });
     },
-    onError: () => qc.invalidateQueries({ queryKey: ['feed'] }),
+    onError: () => qc.invalidateQueries({ queryKey: ['feed', activeTab, page] }),
   });
 
   const handleAction = (fn: () => void) => {
@@ -277,6 +269,20 @@ function FeedCard({ post, isLast, onClick }: { post: FeedItem; isLast: boolean; 
 
 function HomeRightRail() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { data: activities } = useQuery({
+    queryKey: ['activities', 'following'],
+    queryFn: () => activityService.following(undefined, 5),
+    enabled: isAuthenticated,
+  });
+  const { data: circles } = useQuery({
+    queryKey: ['recommend', 'circles'],
+    queryFn: () => recommendService.circles(3),
+  });
+  const { data: topics } = useQuery({
+    queryKey: ['topics', 'hot'],
+    queryFn: () => topicService.hot(5),
+  });
 
   return (
     <>
@@ -287,15 +293,19 @@ function HomeRightRail() {
           <button className="text-xs text-gray-400 hover:text-gray-600">查看全部 &gt;</button>
         </div>
         <div className="flex flex-col gap-5">
-          {MOCK_ACTIVITIES.map((activity) => (
+          {!isAuthenticated ? (
+            <p className="text-sm text-gray-400">登录后查看关注动态</p>
+          ) : (activities?.items?.length ?? 0) === 0 ? (
+            <p className="text-sm text-gray-400">暂无关注动态</p>
+          ) : activities!.items.map((activity) => (
             <div key={activity.id} className="flex items-start gap-3">
-              <img src={activity.avatar} className="w-9 h-9 rounded-full object-cover" />
+              <img src={activity.actor.avatar || `https://i.pravatar.cc/150?u=${activity.actor.id}`} className="w-9 h-9 rounded-full object-cover" />
               <div className="flex flex-col mt-0.5">
                 <div className="text-[14px]">
-                  <span className="font-medium text-gray-900 mr-2">{activity.user}</span>
-                  <span className="text-blue-600 text-[13px]">{activity.action}</span>
+                  <span className="font-medium text-gray-900 mr-2">{activity.actor.nickname}</span>
+                  <span className="text-blue-600 text-[13px]">{activity.type}</span>
                 </div>
-                <span className="text-xs text-gray-400 mt-1">{activity.time}</span>
+                <span className="text-xs text-gray-400 mt-1">{formatRelativeTime(activity.createdAt)}</span>
               </div>
             </div>
           ))}
@@ -309,13 +319,15 @@ function HomeRightRail() {
           <button onClick={() => navigate('/circles')} className="text-xs text-gray-400 hover:text-gray-600">查看全部 &gt;</button>
         </div>
         <div className="flex flex-col gap-5">
-          {MOCK_CIRCLES.map((circle) => (
+          {(circles ?? []).length === 0 ? (
+            <p className="text-sm text-gray-400">暂无推荐圈子</p>
+          ) : circles!.map((circle) => (
             <div key={circle.id} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img src={circle.avatar} className="w-10 h-10 rounded-xl object-cover" />
+                <img src={circle.avatarUrl || `https://i.pravatar.cc/150?u=circle-${circle.id}`} className="w-10 h-10 rounded-xl object-cover" />
                 <div>
                   <div className="font-medium text-[14px] text-gray-900">{circle.name}</div>
-                  <div className="text-xs text-gray-400 mt-0.5">{formatCount(circle.members)}人加入</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{formatCount(circle.memberCount)}人加入</div>
                 </div>
               </div>
               <button
@@ -336,17 +348,19 @@ function HomeRightRail() {
           <button className="text-xs text-gray-400 hover:text-gray-600">查看全部 &gt;</button>
         </div>
         <div className="flex flex-col gap-4">
-          {MOCK_TOPICS.map((topic, index) => (
-            <div key={topic.id} className="flex items-center justify-between group cursor-pointer" onClick={() => navigate(`/search?q=${encodeURIComponent(topic.title)}`)}>
+          {(topics ?? []).length === 0 ? (
+            <p className="text-sm text-gray-400">暂无热门话题</p>
+          ) : topics!.map((topic, index) => (
+            <div key={topic.tag} className="flex items-center justify-between group cursor-pointer" onClick={() => navigate(`/search?q=${encodeURIComponent(topic.tag)}`)}>
               <div className="flex items-center gap-3">
                 <span className={`text-[15px] font-bold w-4 text-center ${index < 3 ? 'text-red-500' : 'text-gray-400'}`}>
-                  {topic.id}
+                  {index + 1}
                 </span>
                 <span className="text-[14px] text-gray-800 group-hover:text-blue-600 transition-colors">
-                  {topic.title}
+                  {topic.tag}
                 </span>
               </div>
-              <span className="text-xs text-gray-400">{topic.views}</span>
+              <span className="text-xs text-gray-400">{formatCount(topic.viewCount)}</span>
             </div>
           ))}
         </div>

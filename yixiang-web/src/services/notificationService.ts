@@ -15,6 +15,8 @@ export const notificationService = {
   unreadCount: () =>
     apiFetch<UnreadCountResponse>(`${BASE}/unread-count`),
 
+  streamPath: () => `${BASE}/stream`,
+
   markAllRead: () =>
     apiFetch<void>(`${BASE}/read-all`, { method: 'PUT' }),
 

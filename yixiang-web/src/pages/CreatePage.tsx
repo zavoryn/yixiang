@@ -8,7 +8,7 @@ import {
   Lightbulb, CheckCircle2, FileText, BarChart2, Users,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
-import { knowpostService } from '@/services/knowpostService';
+import { knowpostService, uploadMarkdownContent } from '@/services/knowpostService';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -32,8 +32,18 @@ export default function CreatePage() {
 
   const publishMut = useMutation({
     mutationFn: async () => {
+      const normalizedTitle = title.trim();
+      const normalizedContent = content.trim();
+      if (normalizedTitle.length < 5) throw new Error('标题至少 5 个字');
+      if (normalizedContent.length < 20) throw new Error('正文至少 20 个字');
       const draft = await knowpostService.createDraft();
-      await knowpostService.update(draft.id, { title, tags, visible: visibility });
+      await uploadMarkdownContent(draft.id, normalizedContent);
+      await knowpostService.update(draft.id, {
+        title: normalizedTitle,
+        tags,
+        visible: visibility,
+        description: normalizedContent.slice(0, 120),
+      });
       await knowpostService.publish(draft.id);
       return draft.id;
     },
@@ -258,7 +268,7 @@ export default function CreatePage() {
             </button>
             <button
               onClick={() => publishMut.mutate()}
-              disabled={!title.trim() || publishMut.isPending}
+              disabled={title.trim().length < 5 || content.trim().length < 20 || publishMut.isPending}
               className="px-8 py-2.5 rounded-full bg-blue-600 text-white font-medium text-[15px] hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 disabled:opacity-50"
             >
               {publishMut.isPending ? '发布中...' : '发布'}
@@ -342,5 +352,4 @@ function CreatePageSidebar() {
     </>
   );
 }
-
 
