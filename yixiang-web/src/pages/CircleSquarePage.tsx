@@ -202,27 +202,34 @@ export default function CircleSquarePage() {
               ))}
 
               {/* Pagination */}
-              {activeTab === '圈子广场' && circles.length > 0 && (
-                <div className="flex justify-center gap-2 py-8">
-                  {[1, 2, 3].map((p) => (
+              {activeTab === '圈子广场' && (() => {
+                const hasMore = data ? data.page * data.size < data.total : false;
+                return (page > 1 || hasMore) && (
+                  <div className="flex justify-center gap-2 py-8">
+                    {page > 1 && (
+                      <button
+                        onClick={() => setPage((p) => p - 1)}
+                        className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 text-sm transition-colors"
+                      >
+                        上一页
+                      </button>
+                    )}
                     <button
-                      key={p}
-                      onClick={() => setPage(p)}
-                      className={`w-8 h-8 flex items-center justify-center text-sm rounded border transition-colors ${
-                        page === p ? 'bg-blue-600 text-white border-blue-600' : 'border-transparent text-gray-600 hover:border-gray-200'
-                      }`}
+                      className="w-8 h-8 flex items-center justify-center text-sm rounded border bg-blue-600 text-white border-blue-600"
                     >
-                      {p}
+                      {page}
                     </button>
-                  ))}
-                  <button
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 text-sm"
-                  >
-                    下一页
-                  </button>
-                </div>
-              )}
+                    {hasMore && (
+                      <button
+                        onClick={() => setPage((p) => p + 1)}
+                        className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 text-sm transition-colors"
+                      >
+                        下一页
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
