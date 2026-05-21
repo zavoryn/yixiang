@@ -1184,11 +1184,11 @@ Expected: `/drafts` and `/settings` no longer route to `CreatePage`.
 - Modify: `yixiang-web/src/pages/CollectionsPage.tsx`
 - Modify: `ROADMAP.md`
 
-- [ ] **Step 1: Circle detail**
+- [x] **Step 1: Circle detail**
 
 Replace `MOCK_PINNED` with `circleService.posts(circle.id, true)`. Replace `MOCK_TOPICS` with `topicService.hot(4)`. Replace `MOCK_ACTIVITIES` with an empty state unless a backend circle activity endpoint is added.
 
-- [ ] **Step 2: Search tabs**
+- [x] **Step 2: Search tabs**
 
 For unsupported tabs, show an honest empty state:
 
@@ -1206,11 +1206,11 @@ if (activeTab !== 0 && activeTab !== 1) {
 
 Keep Roadmap unchecked for those search dimensions unless backend aggregation exists.
 
-- [ ] **Step 3: Collections page**
+- [x] **Step 3: Collections page**
 
 Use first 3 real favorites for “最近收藏”. Replace static folder categories with an empty state titled “收藏夹分类暂未接入” unless a real folder API is added.
 
-- [ ] **Step 4: Roadmap truth update**
+- [x] **Step 4: Roadmap truth update**
 
 Edit `ROADMAP.md` so checked items only describe verified behavior. Move partially implemented items under a “进行中” section:
 
@@ -1223,7 +1223,7 @@ Edit `ROADMAP.md` so checked items only describe verified behavior. Move partial
 - [ ] OSS 直传图片/文件：正文 Markdown 已接入，图片上传待接入
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run:
 
@@ -1242,7 +1242,7 @@ Expected: remaining matches are intentional only: DM, third-party login, unsuppo
 **Files:**
 - Modify only if verification exposes defects.
 
-- [ ] **Step 1: Frontend checks**
+- [x] **Step 1: Frontend checks**
 
 Run:
 
@@ -1258,7 +1258,7 @@ Expected:
 - Vitest exits 0.
 - Vite build exits 0.
 
-- [ ] **Step 2: Backend checks**
+- [x] **Step 2: Backend checks**
 
 Run:
 
@@ -1271,7 +1271,7 @@ mvn test
 
 Expected: all backend tests pass under Java 21.
 
-- [ ] **Step 3: Manual browser smoke**
+- [x] **Step 3: Manual browser smoke**
 
 Start services:
 
@@ -1291,7 +1291,7 @@ With backend running on `localhost:8080`, manually verify:
 - `/settings` shows persisted settings.
 - Home page right rail no longer displays fixed mock names.
 
-- [ ] **Step 4: Final mock audit**
+- [x] **Step 4: Final mock audit**
 
 Run:
 
