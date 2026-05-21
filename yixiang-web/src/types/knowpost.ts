@@ -55,6 +55,7 @@ export type FeedItem = {
   authorAvatar?: string;
   authorNickname: string;
   authorId?: string;
+  publishTime?: string;
   likeCount?: number;
   favoriteCount?: number;
   commentCount?: number;

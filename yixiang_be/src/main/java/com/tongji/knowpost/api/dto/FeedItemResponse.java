@@ -2,6 +2,7 @@ package com.tongji.knowpost.api.dto;
 
 import com.tongji.user.api.dto.UserBrief;
 
+import java.time.Instant;
 import java.util.List;
 
 public record FeedItemResponse(
@@ -20,5 +21,6 @@ public record FeedItemResponse(
         Boolean faved,
         Boolean isTop,
         List<UserBrief> recentLikers,
-        String likerSummary
+        String likerSummary,
+        Instant publishTime
 ) {}

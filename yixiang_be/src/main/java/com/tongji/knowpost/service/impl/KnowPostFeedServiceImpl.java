@@ -238,7 +238,8 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
                     faved,
                     it.isTop(),
                     it.recentLikers(),
-                    it.likerSummary()
+                    it.likerSummary(),
+                    it.publishTime()
             ));
         }
         return out;
@@ -339,7 +340,8 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
                     faved,
                     base.isTop(),
                     recentLikers,
-                    likerSummary
+                    likerSummary,
+                    base.publishTime()
             ));
         }
         // hasMore 优先使用软缓存值；若缺失，则以"满页"作为兜底判断
@@ -586,7 +588,8 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
                     faved,
                     isTop,
                     recentLikers,
-                    likerSummary
+                    likerSummary,
+                    r.getPublishTime()
             ));
         }
         return items;

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Share, ThumbsUp, MessageCircle, MoreHorizontal, ChevronRight, ChevronDown,
-  Clock, MapPin, Briefcase, Calendar, BarChart2, ArrowUp, Shield, Award, Zap,
+  MapPin, Briefcase, Calendar, BarChart2, ArrowUp, Shield, Award, Zap,
   FileText
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { formatCount } from '@/lib/formatters';
 import type { FeedItem } from '@/types/knowpost';
 import type { RelationCountersResponse } from '@/types/relation';
+import type { ProfileResponse } from '@/types/profile';
 
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1611974789855-9c2a0a2236a0?auto=format&fit=crop&w=1200&q=80';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80';
@@ -299,7 +300,7 @@ export default function ProfilePage() {
 
       {/* Right sidebar */}
       <aside className="w-[320px] shrink-0 sticky top-[88px] flex flex-col gap-4 max-lg:hidden">
-        <RightSidebar profile={profile} />
+        <RightSidebar profile={profile} isOwnProfile={isOwnProfile} />
       </aside>
     </PageShell>
   );
@@ -378,7 +379,8 @@ function PageButton({ children, active, onClick }: { children: React.ReactNode; 
   );
 }
 
-function RightSidebar({ profile }: { profile: { id: number; nickname: string; avatar: string; bio?: string; } }) {
+function RightSidebar({ profile, isOwnProfile }: { profile: ProfileResponse; isOwnProfile: boolean }) {
+  const navigate = useNavigate();
   return (
     <>
       {/* Personal info */}
@@ -387,15 +389,28 @@ function RightSidebar({ profile }: { profile: { id: number; nickname: string; av
         <p className="text-sm text-gray-600 mb-5 leading-relaxed">{profile.bio || '这个人很懒，什么都没写~'}</p>
 
         <div className="space-y-4 mb-5">
-          <InfoRow icon={<Clock size={16} />} label="注册时间" value="2023-05-18" />
-          <InfoRow icon={<MapPin size={16} />} label="所在地区" value="广东·深圳" />
-          <InfoRow icon={<Briefcase size={16} />} label="职业" value="投资研究员" />
-          <InfoRow icon={<Calendar size={16} />} label="投资年限" value="10年+" />
+          {profile.roleTitle && (
+            <InfoRow icon={<Briefcase size={16} />} label="职业" value={profile.roleTitle} />
+          )}
+          {profile.school && (
+            <InfoRow icon={<MapPin size={16} />} label="学校/机构" value={profile.school} />
+          )}
+          {profile.birthday && (
+            <InfoRow icon={<Calendar size={16} />} label="生日" value={profile.birthday} />
+          )}
+          {!profile.roleTitle && !profile.school && !profile.birthday && (
+            <p className="text-sm text-gray-400">暂无更多信息</p>
+          )}
         </div>
 
-        <button className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium text-sm py-2 rounded-lg transition-colors">
-          编辑资料
-        </button>
+        {isOwnProfile && (
+          <button
+            onClick={() => navigate('/settings')}
+            className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium text-sm py-2 rounded-lg transition-colors"
+          >
+            编辑资料
+          </button>
+        )}
       </div>
 
       {/* Recent visitors */}

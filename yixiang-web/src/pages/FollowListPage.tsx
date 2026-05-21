@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { UserCheck, Users } from 'lucide-react';
+import { UserCheck, Users, CheckCircle2 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAuth } from '@/context/AuthContext';
 import { useFollow } from '@/features/relation/useFollow';
 import { useUnfollow } from '@/features/relation/useUnfollow';
 import { relationService } from '@/services/relationService';
+import { recommendService } from '@/services/recommendService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,17 @@ export default function FollowListPage() {
     queryKey: ['relation', 'followers', userId],
     queryFn: () => relationService.followers(userId!, 20),
     enabled: userId != null && activeTab === '我的粉丝',
+  });
+
+  const { data: counters } = useQuery({
+    queryKey: ['relation', 'counters', userId],
+    queryFn: () => relationService.counters(userId!),
+    enabled: userId != null,
+  });
+
+  const { data: recommended = [] } = useQuery({
+    queryKey: ['recommend', 'users', 3],
+    queryFn: () => recommendService.users(3),
   });
 
   const displayUsers = activeTab === '我的关注' ? following : followers;
@@ -122,42 +134,59 @@ export default function FollowListPage() {
 
       {/* Right sidebar */}
       <aside className="w-[320px] shrink-0 flex flex-col gap-4 max-lg:hidden">
+        {/* Follow stats with real counts */}
         <div className="bg-white rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-lg mb-4">关注统计</h3>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="font-bold text-xl text-gray-900">{formatCount(following?.length ?? 0)}</div>
+            <div
+              className="bg-gray-50 rounded-xl p-4 text-center cursor-pointer hover:bg-blue-50 transition-colors"
+              onClick={() => setActiveTab('我的关注')}
+            >
+              <div className="font-bold text-xl text-gray-900">{formatCount(counters?.followings ?? 0)}</div>
               <div className="text-xs text-gray-500 mt-1">关注</div>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="font-bold text-xl text-gray-900">{formatCount(followers?.length ?? 0)}</div>
+            <div
+              className="bg-gray-50 rounded-xl p-4 text-center cursor-pointer hover:bg-blue-50 transition-colors"
+              onClick={() => setActiveTab('我的粉丝')}
+            >
+              <div className="font-bold text-xl text-gray-900">{formatCount(counters?.followers ?? 0)}</div>
               <div className="text-xs text-gray-500 mt-1">粉丝</div>
             </div>
           </div>
         </div>
 
+        {/* Recommended users from real API */}
         <div className="bg-white rounded-2xl p-6 shadow-sm">
           <h3 className="font-bold text-lg mb-4">可能认识的人</h3>
-          <div className="space-y-4">
-            {[
-              { id: 1, name: '宁德时代研究员', desc: '8 个共同好友', avatar: 'https://i.pravatar.cc/150?u=r1' },
-              { id: 2, name: '量化小白成长记', desc: '粉丝 1.2w', avatar: 'https://i.pravatar.cc/150?img=32' },
-              { id: 3, name: '趋势追踪者', desc: '粉丝 8600', avatar: 'https://i.pravatar.cc/150?img=12' },
-            ].map((rec) => (
-              <div key={rec.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img src={rec.avatar} className="w-10 h-10 rounded-full" />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{rec.name}</div>
-                    <div className="text-xs text-gray-400">{rec.desc}</div>
+          {recommended.length === 0 ? (
+            <p className="text-sm text-gray-400">暂无推荐</p>
+          ) : (
+            <div className="space-y-4">
+              {recommended.map((rec) => (
+                <div key={rec.id} className="flex items-center justify-between">
+                  <div
+                    className="flex items-center gap-3 cursor-pointer"
+                    onClick={() => navigate(`/users/${rec.id}`)}
+                  >
+                    <img
+                      src={rec.avatar || `https://i.pravatar.cc/150?u=rec-${rec.id}`}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-medium text-gray-900">{rec.nickname}</span>
+                        {rec.verified && <CheckCircle2 size={13} className="fill-blue-500 text-white" />}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {rec.roleTitle || `粉丝 ${formatCount(rec.followerCount)}`}
+                      </div>
+                    </div>
                   </div>
+                  <FollowToggleButton targetUserId={rec.id} />
                 </div>
-                <button className="text-blue-600 border border-blue-200 hover:bg-blue-50 px-4 py-1.5 rounded-full text-xs font-medium transition-colors">
-                  关注
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </aside>
     </PageShell>

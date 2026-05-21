@@ -169,7 +169,8 @@ public class FeedCacheInvalidationListener {
                             faved,
                             it.isTop(),
                             it.recentLikers(),
-                            it.likerSummary()
+                            it.likerSummary(),
+                            it.publishTime()
                     );
                 }
                 items.add(it);

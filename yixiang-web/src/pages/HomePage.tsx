@@ -10,6 +10,7 @@ import { activityService } from '@/services/activityService';
 import { hotService } from '@/services/hotService';
 import { recommendService } from '@/services/recommendService';
 import { topicService } from '@/services/topicService';
+import { relationService } from '@/services/relationService';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -155,6 +156,29 @@ function FeedCard({ post, isLast, onClick, activeTab, page }: { post: FeedItem; 
     onError: () => qc.invalidateQueries({ queryKey: ['feed', activeTab, page] }),
   });
 
+  const followMut = useMutation({
+    mutationFn: () => {
+      const authorId = Number(post.authorId);
+      if (!Number.isFinite(authorId)) throw new Error('作者信息缺失');
+      return post.isFollowingAuthor ? relationService.unfollow(authorId) : relationService.follow(authorId);
+    },
+    onMutate: () => {
+      qc.setQueryData<{ items: FeedItem[] }>(['feed', activeTab, page], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((p) =>
+            p.authorId === post.authorId ? { ...p, isFollowingAuthor: !p.isFollowingAuthor } : p
+          ),
+        };
+      });
+    },
+    onError: (err) => {
+      qc.invalidateQueries({ queryKey: ['feed', activeTab, page] });
+      toast.error(err instanceof Error ? err.message : '关注失败');
+    },
+  });
+
   const handleAction = (fn: () => void) => {
     if (!isAuthenticated) { toast.info('请先登录'); return; }
     fn();
@@ -174,22 +198,22 @@ function FeedCard({ post, isLast, onClick, activeTab, page }: { post: FeedItem; 
               <span className="font-bold text-gray-900">{post.authorNickname}</span>
               <CheckCircle2 size={16} className="fill-blue-500 text-white" />
             </div>
-            <div className="text-xs text-gray-400 mt-0.5">{post.authorId}</div>
+            <div className="text-xs text-gray-400 mt-0.5">
+              {[
+                post.publishTime ? formatRelativeTime(post.publishTime) : null,
+                (() => { try { const a = JSON.parse(post.tagJson ?? '[]'); return Array.isArray(a) && a[0] ? a[0] : null; } catch { return null; } })(),
+              ].filter(Boolean).join(' · ') || null}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {post.isFollowingAuthor ? (
-            <button className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-1.5 rounded-full text-xs font-medium transition-colors">
-              已关注
-            </button>
-          ) : (
-            <button
-              className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-1.5 rounded-full text-xs font-medium transition-colors"
-              onClick={(e) => { e.stopPropagation(); handleAction(() => toast.info('关注功能')); }}
-            >
-              关注
-            </button>
-          )}
+          <button
+            className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+            disabled={followMut.isPending}
+            onClick={(e) => { e.stopPropagation(); handleAction(() => followMut.mutate()); }}
+          >
+            {post.isFollowingAuthor ? '已关注' : '关注'}
+          </button>
           <button className="text-gray-400 hover:text-gray-600"><MoreHorizontal size={20} /></button>
         </div>
       </div>

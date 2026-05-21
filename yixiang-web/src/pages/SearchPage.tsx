@@ -216,6 +216,22 @@ export default function SearchPage() {
           </ul>
         </div>
 
+        {/* Search suggestions */}
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <h3 className="font-bold text-gray-900 text-[16px] mb-4">搜索建议</h3>
+          <div className="flex flex-wrap gap-2">
+            {['价值投资', '技术分析', '财报季', 'A股', '美联储', '半导体', '新能源', '量化交易'].map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setInputValue(tag)}
+                className="px-3 py-1.5 bg-gray-50 hover:bg-blue-50 hover:text-[#165DFF] text-gray-600 text-[13px] rounded-full border border-gray-200 hover:border-blue-200 transition-colors"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Search history */}
         {searchHistory.length > 0 && (
           <div className="bg-white rounded-xl p-5 shadow-sm">
@@ -230,7 +246,16 @@ export default function SearchPage() {
                     <Clock size={14} className="text-gray-400" />
                     <span className="text-[14px]">{item}</span>
                   </div>
-                  <X size={14} className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <X
+                    size={14}
+                    className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const updated = searchHistory.filter((_, i) => i !== idx);
+                      setSearchHistory(updated);
+                      localStorage.setItem('search_history', JSON.stringify(updated));
+                    }}
+                  />
                 </li>
               ))}
             </ul>

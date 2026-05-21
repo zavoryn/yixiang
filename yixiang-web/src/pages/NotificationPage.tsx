@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle, Settings, Bell, MessageSquare, ThumbsUp,
-  UserPlus, Star, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon
+  UserPlus, Star, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon, CheckCircle2,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useNotifications } from '@/features/notification/useNotifications';
@@ -282,6 +282,37 @@ export default function NotificationPage() {
                   </div>
                 </div>
                 <Toggle checked={item.checked} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Suggested users */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-5">
+            <h3 className="font-bold text-lg">你可能感兴趣的人</h3>
+            <button className="text-xs text-gray-400 hover:text-gray-600">换一换 &gt;</button>
+          </div>
+          <div className="flex flex-col gap-5">
+            {[
+              { name: '价值投资者', desc: '专注A股长期价值投资', avatar: 'https://i.pravatar.cc/150?u=sug1' },
+              { name: '量化研究员', desc: '量化策略 · 数据分析', avatar: 'https://i.pravatar.cc/150?u=sug2' },
+              { name: '宏观经济学家', desc: '宏观政策解读与预测', avatar: 'https://i.pravatar.cc/150?u=sug3' },
+            ].map((user) => (
+              <div key={user.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <img src={user.avatar} className="w-10 h-10 rounded-full object-cover" />
+                  <div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-[14px] text-gray-900">{user.name}</span>
+                      <CheckCircle2 size={14} className="fill-blue-500 text-white" />
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">{user.desc}</div>
+                  </div>
+                </div>
+                <button className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-full text-xs font-medium transition-colors">
+                  关注
+                </button>
               </div>
             ))}
           </div>
