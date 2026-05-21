@@ -102,3 +102,35 @@ describe('apiFetch', () => {
     expect(onAuthFailed).toHaveBeenCalled();
   });
 });
+
+describe('apiFetch with absolute backend base URL', () => {
+  it('refreshes through /api/v1 when VITE_API_BASE_URL is backend origin', async () => {
+    vi.resetModules();
+    vi.doMock('./env', () => ({
+      env: { apiBaseUrl: 'http://localhost:8080', isDev: true },
+    }));
+    const imported = await import('./apiClient');
+    const absoluteFetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        accessToken: 'new-access',
+        accessTokenExpiresAt: '2026-05-21T04:00:00Z',
+        refreshToken: 'new-refresh',
+        refreshTokenExpiresAt: '2026-05-28T04:00:00Z',
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    globalThis.fetch = absoluteFetchMock as unknown as typeof fetch;
+    imported.setTokenStore({
+      getAccessToken: () => 'expired-access',
+      getRefreshToken: () => 'refresh-token',
+      onTokensUpdated: vi.fn(),
+      onAuthFailed: vi.fn(),
+    });
+
+    await imported.apiFetch<{ ok: boolean }>('/api/v1/profile/1');
+
+    expect(absoluteFetchMock.mock.calls[0][0]).toBe('http://localhost:8080/api/v1/profile/1');
+    expect(absoluteFetchMock.mock.calls[1][0]).toBe('http://localhost:8080/api/v1/auth/token/refresh');
+    vi.doUnmock('./env');
+  });
+});

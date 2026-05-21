@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
@@ -25,11 +26,19 @@ public class KnowPostRagController {
      * 示例：GET /api/v1/knowposts/{id}/qa/stream?question=...&topK=5&maxTokens=1024
      */
     @GetMapping(value = "/{id}/qa/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<String> qaStream(@PathVariable("id") long id,
-                                 @RequestParam("question") String question,
-                                 @RequestParam(value = "topK", defaultValue = "5") int topK,
-                                 @RequestParam(value = "maxTokens", defaultValue = "1024") int maxTokens) {
-        return ragQueryService.streamAnswerFlux(id, question, topK, maxTokens);
+    public Flux<ServerSentEvent<String>> qaStream(@PathVariable("id") long id,
+                                                  @RequestParam("question") String question,
+                                                  @RequestParam(value = "topK", defaultValue = "5") int topK,
+                                                  @RequestParam(value = "maxTokens", defaultValue = "1024") int maxTokens) {
+        Flux<ServerSentEvent<String>> messages = ragQueryService.streamAnswerFlux(id, question, topK, maxTokens)
+                .map(chunk -> ServerSentEvent.<String>builder()
+                        .event("message")
+                        .data(chunk)
+                        .build());
+        return messages.concatWithValues(ServerSentEvent.<String>builder()
+                .event("done")
+                .data("")
+                .build());
     }
 
     /**

@@ -3,6 +3,20 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.tongji.circle.mapper.CircleMapper">
 
+    <resultMap id="CircleResultMap" type="com.tongji.circle.model.Circle">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="avatar_url" property="avatarUrl"/>
+        <result column="owner_id" property="ownerId"/>
+        <result column="visibility" property="visibility"/>
+        <result column="status" property="status"/>
+        <result column="category" property="category"/>
+        <result column="member_count" property="memberCount"/>
+        <result column="post_count" property="postCount"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
     <insert id="insert">
         INSERT INTO circles (id, name, description, avatar_url, owner_id, visibility, status, category, member_count, post_count, created_at)
         VALUES (#{id}, #{name}, #{description}, #{avatarUrl}, #{ownerId}, #{visibility}, #{status}, #{category}, #{memberCount}, #{postCount}, NOW(3))

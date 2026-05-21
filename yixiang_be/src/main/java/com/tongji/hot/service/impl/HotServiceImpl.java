@@ -26,7 +26,7 @@ public class HotServiceImpl implements HotService {
 
     private static final int MAX_SIZE = 50;
     private static final int CANDIDATE_POOL = 200;
-    private static final List<String> METRICS = List.of("like", "comment", "favorite");
+    private static final List<String> METRICS = List.of("like", "comment", "fav");
 
     private final KnowPostMapper postMapper;
     private final UserMapper userMapper;
@@ -68,7 +68,7 @@ public class HotServiceImpl implements HotService {
                 .map(p -> String.valueOf(p.getId()))
                 .toList();
 
-        Map<String, Map<String, Long>> countsBatch = counterService.getCountsBatch("post", postIds, METRICS);
+        Map<String, Map<String, Long>> countsBatch = counterService.getCountsBatch("knowpost", postIds, METRICS);
 
         List<KnowPost> sorted = candidates.stream()
                 .sorted((a, b) -> {
@@ -97,7 +97,7 @@ public class HotServiceImpl implements HotService {
                     authors.get(p.getCreatorId()),
                     c.getOrDefault("like", 0L),
                     c.getOrDefault("comment", 0L),
-                    c.getOrDefault("favorite", 0L),
+                    c.getOrDefault("fav", 0L),
                     p.getCreateTime()
             );
         }).toList();

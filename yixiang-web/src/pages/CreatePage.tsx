@@ -1,28 +1,27 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ChevronDown, Bold, Italic, Underline, List, TextQuote, Code,
   Image as ImageIcon, PlaySquare, Globe, Lock, Save, ImagePlus,
   ShieldCheck, AlertCircle, Ban, MessageSquare, ThumbsUp,
-  Lightbulb, CheckCircle2, FileText, BarChart2, Users,
+  Lightbulb, CheckCircle2, FileEdit, Users,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
-import { knowpostService, uploadMarkdownContent } from '@/services/knowpostService';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/common/EmptyState';
-
-const MOCK_DRAFTS = [
-  { id: 1, title: '半导体板块还能走多远?', time: '更新于 2小时前', icon: BarChart2, color: 'bg-blue-50 text-blue-600' },
-  { id: 2, title: '宁德时代Q3财报解读', time: '更新于 1天前', icon: FileText, color: 'bg-purple-50 text-purple-600' },
-  { id: 3, title: '我的短线交易策略分享', time: '更新于 3天前', icon: BarChart2, color: 'bg-orange-50 text-orange-600' },
-];
+import { draftService, uploadDraftMarkdownContent, type DraftItem } from '@/services/draftService';
+import { formatRelativeTime } from '@/lib/formatters';
 
 export default function CreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const qc = useQueryClient();
   const { isAuthenticated } = useAuth();
+  const draftIdParam = searchParams.get('draftId');
+  const editingDraftId = draftIdParam && Number.isFinite(Number(draftIdParam)) ? Number(draftIdParam) : null;
   const [postType, setPostType] = useState<'public' | 'circle'>('public');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [title, setTitle] = useState('');
@@ -30,26 +29,87 @@ export default function CreatePage() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
 
+  const { data: editingDraft } = useQuery({
+    queryKey: ['drafts', editingDraftId],
+    queryFn: () => draftService.get(editingDraftId!),
+    enabled: isAuthenticated && editingDraftId != null,
+  });
+
+  useEffect(() => {
+    if (!editingDraft) return;
+    setTitle(editingDraft.title ?? '');
+    setTags(editingDraft.tags ?? []);
+    setPostType(editingDraft.circleId ? 'circle' : 'public');
+    setVisibility(editingDraft.circleId ? 'private' : 'public');
+
+    let cancelled = false;
+    if (editingDraft.contentUrl) {
+      fetch(editingDraft.contentUrl)
+        .then((resp) => (resp.ok ? resp.text() : ''))
+        .then((text) => {
+          if (!cancelled && text) setContent(text);
+        })
+        .catch(() => {
+          if (!cancelled) toast.error('草稿正文加载失败');
+        });
+    } else {
+      setContent('');
+    }
+    return () => { cancelled = true; };
+  }, [editingDraft]);
+
+  const saveCurrentDraft = async () => {
+    const normalizedTitle = title.trim();
+    const normalizedContent = content.trim();
+    if (!normalizedTitle && !normalizedContent) throw new Error('请输入标题或正文后再保存');
+
+    let draft: DraftItem;
+    if (editingDraftId) {
+      draft = await draftService.update(editingDraftId, {
+        title: normalizedTitle || null,
+        tags,
+        circleId: postType === 'circle' ? editingDraft?.circleId ?? undefined : undefined,
+        coverImage: editingDraft?.coverImage ?? null,
+      });
+    } else {
+      draft = await draftService.create({
+        title: normalizedTitle || null,
+        tags,
+        coverImage: null,
+      });
+    }
+
+    let contentUrl = draft.contentUrl;
+    if (normalizedContent) {
+      contentUrl = await uploadDraftMarkdownContent(draft.id, normalizedContent);
+      draft = await draftService.update(draft.id, { contentUrl });
+    }
+
+    qc.invalidateQueries({ queryKey: ['drafts'] });
+    if (!editingDraftId) navigate(`/create?draftId=${draft.id}`, { replace: true });
+    return draft;
+  };
+
+  const saveMut = useMutation({
+    mutationFn: saveCurrentDraft,
+    onSuccess: () => toast.success('草稿已保存'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : '保存失败'),
+  });
+
   const publishMut = useMutation({
     mutationFn: async () => {
       const normalizedTitle = title.trim();
       const normalizedContent = content.trim();
       if (normalizedTitle.length < 5) throw new Error('标题至少 5 个字');
       if (normalizedContent.length < 20) throw new Error('正文至少 20 个字');
-      const draft = await knowpostService.createDraft();
-      await uploadMarkdownContent(draft.id, normalizedContent);
-      await knowpostService.update(draft.id, {
-        title: normalizedTitle,
-        tags,
-        visible: visibility,
-        description: normalizedContent.slice(0, 120),
-      });
-      await knowpostService.publish(draft.id);
-      return draft.id;
+      const draft = await saveCurrentDraft();
+      const resp = await draftService.publish(draft.id);
+      return resp.postId;
     },
-    onSuccess: (id) => {
+    onSuccess: (postId) => {
       toast.success('发布成功');
-      navigate(`/posts/${id}`);
+      qc.invalidateQueries({ queryKey: ['drafts'] });
+      navigate(`/posts/${postId}`);
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : '发布失败');
@@ -96,7 +156,7 @@ export default function CreatePage() {
           >
             <ArrowLeft size={20} /> <span className="font-medium text-[15px]">返回</span>
           </button>
-          <h2 className="text-[18px] font-bold text-gray-900">发布帖子</h2>
+          <h2 className="text-[18px] font-bold text-gray-900">{editingDraftId ? '编辑草稿' : '发布帖子'}</h2>
         </div>
 
         {/* Form */}
@@ -259,8 +319,12 @@ export default function CreatePage() {
 
         {/* Bottom actions */}
         <div className="border-t border-gray-100 p-6 flex items-center justify-between mt-4">
-          <button className="flex items-center gap-2 text-blue-600 font-medium text-[15px] hover:text-blue-700 transition-colors">
-            <Save size={18} /> 保存草稿
+          <button
+            onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending || publishMut.isPending}
+            className="flex items-center gap-2 text-blue-600 font-medium text-[15px] hover:text-blue-700 transition-colors disabled:opacity-50"
+          >
+            <Save size={18} /> {saveMut.isPending ? '保存中...' : '保存草稿'}
           </button>
           <div className="flex gap-4">
             <button className="px-8 py-2.5 rounded-full border border-gray-300 text-gray-700 font-medium text-[15px] hover:bg-gray-50 transition-colors">
@@ -268,7 +332,7 @@ export default function CreatePage() {
             </button>
             <button
               onClick={() => publishMut.mutate()}
-              disabled={title.trim().length < 5 || content.trim().length < 20 || publishMut.isPending}
+              disabled={title.trim().length < 5 || content.trim().length < 20 || publishMut.isPending || saveMut.isPending}
               className="px-8 py-2.5 rounded-full bg-blue-600 text-white font-medium text-[15px] hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 disabled:opacity-50"
             >
               {publishMut.isPending ? '发布中...' : '发布'}
@@ -281,6 +345,13 @@ export default function CreatePage() {
 }
 
 function CreatePageSidebar() {
+  const navigate = useNavigate();
+  const { data: drafts = [] } = useQuery({
+    queryKey: ['drafts'],
+    queryFn: () => draftService.list(),
+  });
+  const recentDrafts = drafts.slice(0, 3);
+
   return (
     <>
       {/* Publish guidelines */}
@@ -329,27 +400,35 @@ function CreatePageSidebar() {
       {/* Drafts */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
         <div className="flex justify-between items-center mb-5">
-          <h3 className="font-bold text-[16px] text-gray-900">草稿箱 (3)</h3>
-          <a href="#" className="text-xs text-gray-400 hover:text-gray-600">全部草稿 &gt;</a>
+          <h3 className="font-bold text-[16px] text-gray-900">草稿箱 ({drafts.length})</h3>
+          <button onClick={() => navigate('/drafts')} className="text-xs text-gray-400 hover:text-gray-600">全部草稿 &gt;</button>
         </div>
-        <div className="flex flex-col gap-5">
-          {MOCK_DRAFTS.map((draft) => (
-            <div key={draft.id} className="flex gap-3 group">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${draft.color}`}>
-                <draft.icon size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-[14px] text-gray-900 truncate mb-1">{draft.title}</div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-400">{draft.time}</span>
-                  <button className="text-[12px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">继续编辑</button>
+        {recentDrafts.length === 0 ? (
+          <p className="text-[13px] text-gray-400">暂无草稿</p>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {recentDrafts.map((draft) => (
+              <div key={draft.id} className="flex gap-3 group">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                  <FileEdit size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-[14px] text-gray-900 truncate mb-1">{draft.title || '未命名草稿'}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-gray-400">更新于 {formatRelativeTime(draft.updatedAt)}</span>
+                    <button
+                      onClick={() => navigate(`/create?draftId=${draft.id}`)}
+                      className="text-[12px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      继续编辑
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
 }
-

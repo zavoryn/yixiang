@@ -13,11 +13,12 @@ export interface UseSSEOptions {
 export function buildSseUrl(path: string, accessToken: string | null): string {
   const base = env.apiBaseUrl.endsWith('/') ? env.apiBaseUrl.slice(0, -1) : env.apiBaseUrl;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  const fullPath = normalizedPath.startsWith(`${base}/`) || normalizedPath === base
-    ? normalizedPath
+  const fullPath = base.endsWith('/api') && (normalizedPath === '/api' || normalizedPath.startsWith('/api/'))
+    ? `${base}${normalizedPath.slice('/api'.length)}`
     : `${base}${normalizedPath}`;
   const url = new URL(fullPath, window.location.origin);
   if (accessToken) url.searchParams.set('access_token', accessToken);
+  if (base.startsWith('http')) return url.toString();
   return url.pathname + url.search + url.hash;
 }
 

@@ -37,8 +37,13 @@ interface ApiFetchOptions extends RequestInit {
 function buildApiUrl(path: string): string {
   if (path.startsWith('http')) return path;
   const base = env.apiBaseUrl.endsWith('/') ? env.apiBaseUrl.slice(0, -1) : env.apiBaseUrl;
-  if (path.startsWith(`${base}/`) || path === base) return path;
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (base.endsWith('/api') && (normalizedPath === '/api' || normalizedPath.startsWith('/api/'))) {
+    return `${base}${normalizedPath.slice('/api'.length)}`;
+  }
+  if (!base.startsWith('http') && (normalizedPath.startsWith(`${base}/`) || normalizedPath === base)) {
+    return normalizedPath;
+  }
   return `${base}${normalizedPath}`;
 }
 
@@ -46,7 +51,7 @@ async function refreshAccessToken(): Promise<boolean> {
   if (!tokenStore) return false;
   const refreshToken = tokenStore.getRefreshToken();
   if (!refreshToken) return false;
-  const resp = await fetch(buildApiUrl('/v1/auth/token/refresh'), {
+  const resp = await fetch(buildApiUrl('/api/v1/auth/token/refresh'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
