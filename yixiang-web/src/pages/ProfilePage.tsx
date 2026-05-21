@@ -81,6 +81,13 @@ export default function ProfilePage() {
     return [];
   })();
 
+  const hasMore = (() => {
+    if (activeTab === '我的帖子') return postsData?.hasMore ?? false;
+    if (activeTab === '我的点赞') return likedData?.hasMore ?? false;
+    if (activeTab === '我的收藏') return favoritesData?.hasMore ?? false;
+    return false;
+  })();
+
   const isPostsLoading = activeTab === '我的帖子' ? postsLoading
     : activeTab === '我的点赞' ? likedLoading
     : activeTab === '我的收藏' ? favsLoading
@@ -269,19 +276,25 @@ export default function ProfilePage() {
               )}
 
               {/* Pagination */}
-              {displayPosts.length > 0 && (
+              {(page > 1 || hasMore) && (
                 <div className="flex justify-center items-center gap-2 py-8">
-                  <PageButton active={page === 1} onClick={() => setPage(1)}>1</PageButton>
-                  <PageButton active={page === 2} onClick={() => setPage(2)}>2</PageButton>
-                  <PageButton active={page === 3} onClick={() => setPage(3)}>3</PageButton>
-                  <span className="text-gray-400 px-1">...</span>
-                  <PageButton active={false} onClick={() => {}}>9</PageButton>
-                  <button
-                    className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 hover:text-blue-600 text-sm transition-colors"
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    下一页
-                  </button>
+                  {page > 1 && (
+                    <button
+                      className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 hover:text-blue-600 text-sm transition-colors"
+                      onClick={() => setPage((p) => p - 1)}
+                    >
+                      上一页
+                    </button>
+                  )}
+                  <PageButton active onClick={() => {}}>{page}</PageButton>
+                  {hasMore && (
+                    <button
+                      className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 hover:text-blue-600 text-sm transition-colors"
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      下一页
+                    </button>
+                  )}
                 </div>
               )}
             </>
