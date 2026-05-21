@@ -125,7 +125,6 @@ export default function CircleDetailPage() {
               <div className="flex gap-10 text-white">
                 <StatBox value={formatCount(circle.memberCount)} label="成员数" />
                 <StatBox value={formatCount(circle.postCount)} label="帖子数" />
-                <StatBox value="128" label="今日活跃" />
               </div>
 
               <div className="flex gap-3">
@@ -168,8 +167,19 @@ export default function CircleDetailPage() {
           ))}
         </div>
 
-        {/* Content grid: 2/3 + 1/3 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Non-首页 tabs: honest empty states */}
+        {activeTab !== '首页' && (
+          <div className="py-16">
+            <EmptyState
+              icon={Bell}
+              title={`「${activeTab}」暂未开放`}
+              description="该功能需要后端专用接口支持，敬请期待"
+            />
+          </div>
+        )}
+
+        {/* Content grid: 2/3 + 1/3 (首页 only) */}
+        {activeTab === '首页' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left: 2/3 — announcements + pinned posts */}
           <div className="lg:col-span-2 space-y-6">
             {/* Announcement */}
@@ -237,7 +247,7 @@ export default function CircleDetailPage() {
               />
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </PageShell>
   );
@@ -253,35 +263,38 @@ function StatBox({ value, label }: { value: string; label: string }) {
 }
 
 function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopics?: { tag: string; postCount: number; viewCount: number }[] }) {
+  const navigate = useNavigate();
+  const owner = circle.topMembers.find((m) => m.role === 'OWNER');
+
   return (
     <>
       {/* Owner info */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="font-bold text-gray-800 mb-4">圈主介绍</h3>
-        <div className="flex items-start gap-3 mb-3">
-          <img
-            src={circle.avatarUrl || `https://i.pravatar.cc/150?u=c${circle.id}`}
-            className="w-12 h-12 rounded-full border border-gray-100 object-cover"
-          />
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-bold text-gray-900">{circle.name}</span>
-              <span className="bg-blue-100 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">Lv.4</span>
-              <span className="bg-orange-100 text-orange-600 text-[10px] px-1.5 py-0.5 rounded font-bold">圈主</span>
-            </div>
-            <div className="text-xs text-gray-500 flex items-center gap-3">
-              <span>粉丝 <span className="font-semibold text-gray-700">1.2w</span></span>
-              <span>帖子 <span className="font-semibold text-gray-700">356</span></span>
+      {owner && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="font-bold text-gray-800 mb-4">圈主介绍</h3>
+          <div
+            className="flex items-start gap-3 mb-4 cursor-pointer"
+            onClick={() => navigate(`/users/${owner.userId}`)}
+          >
+            <img
+              src={owner.avatar || `https://i.pravatar.cc/150?u=owner-${owner.userId}`}
+              className="w-12 h-12 rounded-full border border-gray-100 object-cover"
+            />
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-bold text-gray-900">{owner.nickname}</span>
+                <span className="bg-orange-100 text-orange-600 text-[10px] px-1.5 py-0.5 rounded font-bold">圈主</span>
+              </div>
+              <p className="text-xs text-gray-500 line-clamp-2">
+                {circle.description || '暂无简介'}
+              </p>
             </div>
           </div>
+          <button className="w-full border border-blue-600 text-blue-600 hover:bg-blue-50 py-1.5 rounded-lg text-sm font-medium transition-colors">
+            关注圈主
+          </button>
         </div>
-        <p className="text-sm text-gray-600 mb-4 leading-relaxed bg-gray-50 p-3 rounded-lg">
-          10年实战经验，擅长短线交易与市场情绪分析，追求稳定复利。
-        </p>
-        <button className="w-full border border-blue-600 text-blue-600 hover:bg-blue-50 py-1.5 rounded-lg text-sm font-medium transition-colors">
-          关注圈主
-        </button>
-      </div>
+      )}
 
       <div className="h-px bg-gray-100 w-full" />
 
@@ -327,26 +340,29 @@ function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopi
       </div>
 
       {/* Members */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-gray-800">
-            圈内成员 <span className="font-normal text-gray-500 text-sm">({formatCount(circle.memberCount)})</span>
-          </h3>
-          <button className="text-gray-400 hover:text-gray-600 flex items-center text-sm">
-            查看全部 <ChevronRight size={14} />
-          </button>
+      {circle.topMembers.length > 0 && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-gray-800">
+              圈内成员 <span className="font-normal text-gray-500 text-sm">({formatCount(circle.memberCount)})</span>
+            </h3>
+            <button className="text-gray-400 hover:text-gray-600 flex items-center text-sm">
+              查看全部 <ChevronRight size={14} />
+            </button>
+          </div>
+          <div className="flex -space-x-2 overflow-hidden py-1">
+            {circle.topMembers.slice(0, 6).map((member) => (
+              <img
+                key={member.userId}
+                title={member.nickname}
+                className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                src={member.avatar || `https://i.pravatar.cc/150?u=m-${member.userId}`}
+                onClick={() => navigate(`/users/${member.userId}`)}
+              />
+            ))}
+          </div>
         </div>
-        <div className="flex -space-x-2 overflow-hidden py-1">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <img
-              key={i}
-              className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-              src={`https://i.pravatar.cc/150?img=${i + 10}`}
-              alt=""
-            />
-          ))}
-        </div>
-      </div>
+      )}
     </>
   );
 }

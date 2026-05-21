@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, ChevronDown, MoreHorizontal, ThumbsUp, MessageCircle,
-  CheckCircle2, Star, ChevronRight,
+  Star, ChevronRight,
   LayoutGrid, List as ListIcon, FolderOpen,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
@@ -19,9 +19,12 @@ export default function CollectionsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('全部收藏');
 
+  const isPostTab = activeTab === '全部收藏' || activeTab === '帖子';
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['favorites'],
+    queryKey: ['favorites', activeTab],
     queryFn: () => favoriteService.list(undefined, 20),
+    enabled: isPostTab,
   });
 
   const posts = data?.items ?? [];
@@ -81,8 +84,16 @@ export default function CollectionsPage() {
             </div>
           </div>
 
-          {/* Posts */}
-          {isLoading ? (
+          {/* Non-post tabs: placeholder */}
+          {!isPostTab ? (
+            <div className="flex-1 flex items-center justify-center py-16">
+              <EmptyState
+                icon={Star}
+                title={`${activeTab}收藏暂未接入`}
+                description="当前仅支持帖子收藏，话题/用户收藏需要后端聚合接口"
+              />
+            </div>
+          ) : isLoading ? (
             <div className="p-6 space-y-4">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex gap-5">
@@ -150,7 +161,6 @@ export default function CollectionsPage() {
                           <img src={post.authorAvatar} className="w-5 h-5 rounded-full object-cover" />
                         )}
                         <span className="text-[13px] font-medium text-gray-700">{post.authorNickname}</span>
-                        {post.authorNickname === 'A股老张' && <CheckCircle2 size={14} className="fill-blue-500 text-white" />}
                       </div>
 
                       <p className="text-[14px] text-gray-500 line-clamp-1 mb-4">
