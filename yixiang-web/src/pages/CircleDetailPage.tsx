@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { circleService } from '@/services/circleService';
+import { topicService } from '@/services/topicService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -15,35 +16,6 @@ import { toast } from 'sonner';
 import type { CircleDetail } from '@/types/circle';
 
 const TABS = ['首页', '帖子', '问答', '成员', '文件', '精华', '设置'];
-
-const MOCK_PINNED = [
-  {
-    id: 1, title: '本周市场展望：短线机会与风险提示',
-    image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=400',
-    author: { name: 'A股老张', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=256&q=80', level: 4 },
-    time: '3天前', excerpt: '结合当前市场情绪与技术面，详细分析本周可能出现的交易机会...', likes: 256, comments: 48,
-  },
-  {
-    id: 2, title: '我的交易系统：从选股到止盈止损',
-    image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&q=80&w=400',
-    author: { name: 'A股老张', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=256&q=80', level: 4 },
-    time: '1周前', excerpt: '完整分享我的短线交易系统，帮助大家建立自己的交易框架。', likes: 189, comments: 36,
-  },
-];
-
-const MOCK_ACTIVITIES = [
-  { user: 'A股老张', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=256&q=80', action: '发布了新帖子', target: '本周市场展望：短线机会与风险提示', time: '3分钟前' },
-  { user: '林夕看盘', avatar: 'https://i.pravatar.cc/150?img=47', action: '回答了问题', target: '如何判断个股的支撑位和压力位？', time: '15分钟前' },
-  { user: 'TechAlpha量化研究社', avatar: 'https://i.pravatar.cc/150?img=33', action: '发布了新帖', target: '量化模型在A股的实战应用', time: '1小时前' },
-  { user: '趋势为王', avatar: 'https://i.pravatar.cc/150?img=11', action: '发表了观点', target: '当前市场更适合做趋势还是震荡？', time: '2小时前' },
-];
-
-const MOCK_TOPICS = [
-  { title: '短线策略', count: 128 },
-  { title: '市场分析', count: 96 },
-  { title: '个股研究', count: 84 },
-  { title: '交易系统', count: 72 },
-];
 
 export default function CircleDetailPage() {
   const navigate = useNavigate();
@@ -55,6 +27,17 @@ export default function CircleDetailPage() {
     queryKey: ['circle', circleId],
     queryFn: () => circleService.detail(circleId!),
     enabled: circleId != null,
+  });
+
+  const { data: featuredPosts } = useQuery({
+    queryKey: ['circle', circleId, 'posts', 'featured'],
+    queryFn: () => circleService.posts(circleId!, true, undefined, 10),
+    enabled: circleId != null,
+  });
+
+  const { data: hotTopics } = useQuery({
+    queryKey: ['topics', 'hot'],
+    queryFn: () => topicService.hot(4),
   });
 
   if (isLoading) {
@@ -87,7 +70,7 @@ export default function CircleDetailPage() {
   return (
     <PageShell
       contentClassName="max-w-5xl"
-      rightRail={<CircleRightPanel circle={circle} />}
+      rightRail={<CircleRightPanel circle={circle} hotTopics={hotTopics} />}
     >
       <div className="px-6 py-4">
         {/* Back button */}
@@ -208,76 +191,50 @@ export default function CircleDetailPage() {
             {/* Pinned posts */}
             <div>
               <h2 className="text-lg font-bold text-gray-800 mb-4 px-1">置顶帖子</h2>
-              <div className="space-y-4">
-                {MOCK_PINNED.map((post) => (
-                  <div key={post.id} className="bg-white rounded-xl p-4 flex gap-4 hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm cursor-pointer group">
-                    <div className="w-40 h-28 shrink-0 rounded-lg overflow-hidden relative">
-                      <img src={post.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">
-                        置顶
-                      </div>
-                    </div>
-
-                    <div className="flex-1 flex flex-col justify-between py-0.5">
-                      <div>
-                        <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                          {post.title}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-2 text-xs">
-                          <img src={post.author.avatar} className="w-5 h-5 rounded-full object-cover" />
-                          <span className="font-medium text-gray-700">{post.author.name}</span>
-                          <span className="bg-blue-100 text-blue-600 text-[10px] px-1 py-0.5 rounded">Lv.{post.author.level}</span>
-                          <span className="text-gray-400">· {post.time}</span>
+              {featuredPosts && featuredPosts.length > 0 ? (
+                <div className="space-y-4">
+                  {featuredPosts.map((post: Record<string, unknown>) => (
+                    <div key={String(post.id)} className="bg-white rounded-xl p-4 flex gap-4 hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm cursor-pointer group">
+                      <div className="w-40 h-28 shrink-0 rounded-lg overflow-hidden relative">
+                        <img src={String(post.coverImage ?? post.image ?? 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=400')} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">
+                          置顶
                         </div>
-                        <p className="text-sm text-gray-500 line-clamp-1">{post.excerpt}</p>
                       </div>
-                      <div className="flex items-center gap-4 text-gray-400 text-sm mt-2">
-                        <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
-                          <ThumbsUp size={14} /> {post.likes}
-                        </span>
-                        <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
-                          <MessageCircle size={14} /> {post.comments}
-                        </span>
+                      <div className="flex-1 flex flex-col justify-between py-0.5">
+                        <div>
+                          <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                            {String(post.title ?? '')}
+                          </h3>
+                          <p className="text-sm text-gray-500 line-clamp-1">{String(post.description ?? '')}</p>
+                        </div>
+                        <div className="flex items-center gap-4 text-gray-400 text-sm mt-2">
+                          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+                            <ThumbsUp size={14} /> {formatCount(Number(post.likeCount ?? 0))}
+                          </span>
+                          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+                            <MessageCircle size={14} /> {formatCount(Number(post.commentCount ?? 0))}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 text-center">
-                <button className="text-gray-500 text-sm hover:text-blue-600 flex items-center justify-center gap-1 mx-auto transition-colors">
-                  查看全部置顶帖子 <ChevronRight size={14} />
-                </button>
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400 text-sm">暂无置顶帖子</div>
+              )}
             </div>
           </div>
 
-          {/* Right: 1/3 — activity feed */}
+          {/* Right: 1/3 — activity feed (backend endpoint pending) */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
               <h2 className="text-base font-bold text-gray-800 mb-4">最新动态</h2>
-              <div className="space-y-6 relative before:absolute before:inset-0 before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent before:left-5">
-                {MOCK_ACTIVITIES.map((activity, idx) => (
-                  <div key={idx} className="relative flex items-start gap-3">
-                    <img
-                      src={activity.avatar}
-                      className="w-8 h-8 rounded-full border-2 border-white bg-white relative z-10 object-cover shrink-0 mt-1 shadow-sm"
-                    />
-                    <div className="flex-1 pb-4">
-                      <div className="text-sm text-gray-800 mb-1">
-                        <span className="font-bold mr-1">{activity.user}</span>
-                        <span className="text-gray-600">{activity.action}</span>
-                      </div>
-                      <div className="text-[13px] text-gray-500 mb-1 line-clamp-1">{activity.target}</div>
-                      <div className="text-xs text-gray-400">{activity.time}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 pt-4 border-t border-gray-50 text-center">
-                <button className="text-gray-500 text-sm hover:text-blue-600 flex items-center justify-center gap-1 mx-auto transition-colors">
-                  查看全部动态 <ChevronRight size={14} />
-                </button>
-              </div>
+              <EmptyState
+                icon={Bell}
+                title="动态暂未接入"
+                description="圈子动态需要后端专用接口支持"
+              />
             </div>
           </div>
         </div>
@@ -295,7 +252,7 @@ function StatBox({ value, label }: { value: string; label: string }) {
   );
 }
 
-function CircleRightPanel({ circle }: { circle: CircleDetail }) {
+function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopics?: { tag: string; postCount: number; viewCount: number }[] }) {
   return (
     <>
       {/* Owner info */}
@@ -352,17 +309,21 @@ function CircleRightPanel({ circle }: { circle: CircleDetail }) {
       {/* Hot topics */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <h3 className="font-bold text-gray-800 mb-4">热门话题</h3>
-        <div className="space-y-3">
-          {MOCK_TOPICS.map((topic) => (
-            <div key={topic.title} className="flex items-center justify-between group cursor-pointer">
-              <div className="flex items-center gap-2 text-sm text-gray-700 group-hover:text-blue-600 transition-colors">
-                <Hash size={14} className="text-blue-400" />
-                <span>{topic.title}</span>
+        {hotTopics && hotTopics.length > 0 ? (
+          <div className="space-y-3">
+            {hotTopics.map((topic) => (
+              <div key={topic.tag} className="flex items-center justify-between group cursor-pointer">
+                <div className="flex items-center gap-2 text-sm text-gray-700 group-hover:text-blue-600 transition-colors">
+                  <Hash size={14} className="text-blue-400" />
+                  <span>{topic.tag}</span>
+                </div>
+                <span className="text-xs text-gray-400">{topic.postCount} 讨论</span>
               </div>
-              <span className="text-xs text-gray-400">{topic.count} 讨论</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-4 text-gray-400 text-sm">暂无热门话题</div>
+        )}
       </div>
 
       {/* Members */}

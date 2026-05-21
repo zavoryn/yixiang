@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, ChevronDown, MoreHorizontal, ThumbsUp, MessageCircle,
-  CheckCircle2, Star, ChevronRight, ArrowUpRight,
-  FileText, TrendingUp, Zap, Globe, BarChart2, BookOpen,
-  LayoutGrid, List as ListIcon,
+  CheckCircle2, Star, ChevronRight,
+  LayoutGrid, List as ListIcon, FolderOpen,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { favoriteService } from '@/services/favoriteService';
@@ -16,26 +15,9 @@ import { formatCount } from '@/lib/formatters';
 
 type TabKey = '全部收藏' | '帖子' | '话题' | '用户';
 
-const FOLDERS = [
-  { id: 'all', label: '全部收藏', count: 128, icon: Star },
-  { id: 'f1', label: '财报解读', count: 28, icon: FileText },
-  { id: 'f2', label: 'K线学习', count: 24, icon: TrendingUp },
-  { id: 'f3', label: '短线策略', count: 20, icon: Zap },
-  { id: 'f4', label: '宏观分析', count: 18, icon: Globe },
-  { id: 'f5', label: '行业研究', count: 16, icon: BarChart2 },
-  { id: 'f6', label: '投资书籍', count: 12, icon: BookOpen },
-];
-
-const RECENT_MOCK = [
-  { id: 1, title: '短线情绪降温，本周控制仓位', author: '林夕看盘 · 5小时前', image: 'https://images.unsplash.com/photo-1590283603385-18ff38540843?auto=format&fit=crop&q=80&w=150&h=150' },
-  { id: 2, title: '宁德时代Q3财报解读：拐点已至？', author: 'A股老张 · 2小时前', image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=150&h=150' },
-  { id: 3, title: 'AI+投资：未来已来，如何把握机会？', author: 'TechAlpha · 1天前', image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=150&h=150' },
-];
-
 export default function CollectionsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('全部收藏');
-  const [activeFolder, setActiveFolder] = useState('all');
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['favorites'],
@@ -208,33 +190,16 @@ export default function CollectionsPage() {
 
       {/* Right sidebar */}
       <aside className="w-[320px] shrink-0 flex flex-col gap-4 max-lg:hidden">
-        {/* Collection folders */}
+        {/* Collection folders — backend API pending */}
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-bold text-[16px] text-gray-900">收藏夹分类</h3>
-            <button className="text-[13px] text-gray-400 hover:text-gray-600 transition-colors">编辑</button>
           </div>
-          <div className="flex flex-col gap-1.5">
-            {FOLDERS.map((folder) => (
-              <div
-                key={folder.id}
-                onClick={() => setActiveFolder(folder.id)}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${
-                  activeFolder === folder.id
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <folder.icon size={18} className={activeFolder === folder.id ? 'text-blue-500' : 'text-gray-400'} />
-                  <span className="text-[14px] font-medium">{folder.label}</span>
-                </div>
-                <span className={`text-[13px] ${activeFolder === folder.id ? 'text-blue-500 font-medium' : 'text-gray-400'}`}>
-                  {folder.count}
-                </span>
-              </div>
-            ))}
-          </div>
+          <EmptyState
+            icon={FolderOpen}
+            title="收藏夹分类暂未接入"
+            description="分类管理功能需要后端收藏夹 API 支持"
+          />
         </div>
 
         {/* Stats */}
@@ -246,24 +211,11 @@ export default function CollectionsPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            <div className="bg-gray-50 rounded-xl py-3 px-1 border border-gray-100 flex flex-col items-center justify-center">
-              <div className="font-bold text-[20px] text-gray-900 leading-none mb-1.5">128</div>
-              <div className="text-[11px] text-gray-500 font-medium">收藏内容</div>
+          <div className="grid grid-cols-1 gap-3 mb-5">
+            <div className="bg-gray-50 rounded-xl py-3 px-4 border border-gray-100 flex items-center justify-between">
+              <div className="text-[13px] text-gray-500 font-medium">收藏内容</div>
+              <div className="font-bold text-[20px] text-gray-900 leading-none">{posts.length}</div>
             </div>
-            <div className="bg-gray-50 rounded-xl py-3 px-1 border border-gray-100 flex flex-col items-center justify-center">
-              <div className="font-bold text-[20px] text-gray-900 leading-none mb-1.5">86</div>
-              <div className="text-[11px] text-gray-500 font-medium">作者</div>
-            </div>
-            <div className="bg-gray-50 rounded-xl py-3 px-1 border border-gray-100 flex flex-col items-center justify-center">
-              <div className="font-bold text-[20px] text-gray-900 leading-none mb-1.5">24</div>
-              <div className="text-[11px] text-gray-500 font-medium">话题</div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-4 border-t border-gray-50 text-[13px]">
-            <span className="text-gray-500">本月新增 <span className="font-medium text-gray-900">12</span> 篇收藏内容</span>
-            <span className="text-green-500 font-medium flex items-center gap-0.5"><ArrowUpRight size={14} /> 20%</span>
           </div>
         </div>
 
@@ -277,20 +229,24 @@ export default function CollectionsPage() {
           </div>
 
           <div className="flex flex-col gap-4">
-            {RECENT_MOCK.map((item) => (
-              <div key={item.id} className="flex gap-3 cursor-pointer group">
-                <img
-                  src={item.image}
-                  className="w-[60px] h-[60px] rounded-lg object-cover shrink-0 border border-gray-100"
-                />
-                <div className="flex flex-col justify-center py-0.5">
-                  <div className="font-medium text-[14px] text-gray-900 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors mb-1">
-                    {item.title}
+            {posts.length > 0 ? (
+              posts.slice(0, 3).map((item) => (
+                <div key={item.id} className="flex gap-3 cursor-pointer group" onClick={() => navigate(`/posts/${item.id}`)}>
+                  <img
+                    src={item.coverImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=150&h=150'}
+                    className="w-[60px] h-[60px] rounded-lg object-cover shrink-0 border border-gray-100"
+                  />
+                  <div className="flex flex-col justify-center py-0.5">
+                    <div className="font-medium text-[14px] text-gray-900 leading-snug line-clamp-2 group-hover:text-blue-600 transition-colors mb-1">
+                      {item.title}
+                    </div>
+                    <div className="text-[11px] text-gray-400">{item.authorNickname}</div>
                   </div>
-                  <div className="text-[11px] text-gray-400">{item.author}</div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-400 text-sm">暂无收藏</div>
+            )}
           </div>
         </div>
       </aside>

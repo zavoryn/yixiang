@@ -113,6 +113,17 @@ export default function SearchPage() {
               ))}
             </div>
 
+            {/* Unsupported tabs: 用户, 话题, 圈子 */}
+            {activeTab >= 2 ? (
+              <div className="bg-white rounded-xl shadow-sm p-8">
+                <EmptyState
+                  icon={Search}
+                  title="该类型搜索暂未接入"
+                  description="当前已接入帖子搜索，用户、话题、圈子搜索需要后端聚合接口。"
+                />
+              </div>
+            ) : (
+              <>
             {/* Filters + Count */}
             <div className="bg-white px-6 py-3 rounded-b-xl mb-4 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -166,6 +177,8 @@ export default function SearchPage() {
                   <PostResultCard key={post.id} post={post} />
                 ))}
               </div>
+            )}
+          </>
             )}
           </>
         )}
