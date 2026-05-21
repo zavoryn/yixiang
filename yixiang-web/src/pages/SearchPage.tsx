@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { searchService } from '@/services/searchService';
+import { topicService } from '@/services/topicService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -15,17 +16,6 @@ import { useDebounce } from '@/hooks/useDebounce';
 import type { FeedItem } from '@/types/knowpost';
 
 const TABS = ['综合', '帖子', '用户', '话题', '圈子'];
-
-const MOCK_TRENDING = [
-  { text: '价值投资', tag: '热' },
-  { text: '财报分析', tag: '热' },
-  { text: '宁德时代', tag: '新' },
-  { text: '短线交易' },
-  { text: 'K线形态' },
-  { text: '半导体行业' },
-  { text: '宏观经济' },
-  { text: '巴菲特' },
-];
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,6 +31,12 @@ export default function SearchPage() {
     queryKey: ['search', debouncedQuery],
     queryFn: () => searchService.query({ q: debouncedQuery, size: 20 }),
     enabled: debouncedQuery.length > 0,
+  });
+
+  const { data: hotTopics = [], refetch: refetchHot } = useQuery({
+    queryKey: ['topics', 'hot', 8],
+    queryFn: () => topicService.hot(8),
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
@@ -193,22 +189,22 @@ export default function SearchPage() {
               <Flame size={20} className="text-red-500" />
               <h3 className="font-bold text-gray-900 text-[16px]">热门搜索</h3>
             </div>
-            <button className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
+            <button onClick={() => refetchHot()} className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
               换一换 <RefreshCw size={12} />
             </button>
           </div>
           <ul className="space-y-3.5">
-            {MOCK_TRENDING.map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 cursor-pointer group" onClick={() => setInputValue(item.text)}>
+            {hotTopics.map((item, idx) => (
+              <li key={item.tag} className="flex items-center gap-3 cursor-pointer group" onClick={() => setInputValue(item.tag)}>
                 <span className={`w-4 text-center text-[15px] font-bold ${idx < 3 ? 'text-red-500' : 'text-gray-300'}`}>
                   {idx + 1}
                 </span>
                 <span className="text-[14px] text-gray-700 group-hover:text-[#165DFF] transition-colors flex-1 truncate">
-                  {item.text}
+                  {item.tag}
                 </span>
-                {item.tag && (
-                  <span className={`text-[10px] px-1 py-0.5 rounded leading-none ${item.tag === '热' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-orange-50 text-orange-500 border border-orange-100'}`}>
-                    {item.tag}
+                {idx < 3 && (
+                  <span className="text-[10px] px-1 py-0.5 rounded leading-none bg-red-50 text-red-500 border border-red-100">
+                    热
                   </span>
                 )}
               </li>
