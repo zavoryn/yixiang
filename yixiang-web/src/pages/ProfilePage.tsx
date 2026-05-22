@@ -13,6 +13,7 @@ import { profileService } from '@/services/profileService';
 import { knowpostService } from '@/services/knowpostService';
 import { favoriteService } from '@/services/favoriteService';
 import { relationService } from '@/services/relationService';
+import { circleService } from '@/services/circleService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import { formatCount } from '@/lib/formatters';
 import type { FeedItem } from '@/types/knowpost';
 import type { RelationCountersResponse } from '@/types/relation';
 import type { ProfileResponse } from '@/types/profile';
+import type { CircleSummary } from '@/types/circle';
 
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1611974789855-9c2a0a2236a0?auto=format&fit=crop&w=1200&q=80';
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&w=150&q=80';
@@ -85,6 +87,13 @@ export default function ProfilePage() {
     queryKey: ['favorites', page],
     queryFn: () => favoriteService.list(undefined, 20),
     enabled: !!(isOwnProfile && activeTab === '我的收藏'),
+  });
+
+  // Fetch joined circles
+  const { data: joinedCircles, isLoading: circlesLoading } = useQuery({
+    queryKey: ['circles', 'joined', profileUserId],
+    queryFn: () => circleService.joined(),
+    enabled: isOwnProfile && activeTab === '我的圈子',
   });
 
   const displayPosts: FeedItem[] = (() => {
@@ -311,13 +320,34 @@ export default function ProfilePage() {
                 </div>
               )}
             </>
+          ) : activeTab === '我的圈子' ? (
+            <div className="px-6 py-4">
+              {circlesLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+                </div>
+              ) : (joinedCircles ?? []).length === 0 ? (
+                <EmptyState
+                  icon={Users}
+                  title="还没有加入任何圈子"
+                  description="去圈子广场发现感兴趣的圈子"
+                  action={<Button onClick={() => navigate('/circles')}>去逛逛</Button>}
+                />
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {(joinedCircles ?? []).map((circle) => (
+                    <ProfileCircleCard key={circle.id} circle={circle} onClick={() => navigate(`/circles/${circle.id}`)} />
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="py-16">
               <EmptyState
                 icon={FileText}
-                title={activeTab === '草稿箱' ? '草稿箱已迁移' : '暂未接入'}
-                description={activeTab === '草稿箱' ? '草稿列表已在独立页面管理' : `${activeTab}需要后端聚合接口后展示`}
-                action={activeTab === '草稿箱' ? <Button onClick={() => navigate('/drafts')}>查看草稿箱</Button> : undefined}
+                title="草稿箱已迁移"
+                description="草稿列表已在独立页面管理"
+                action={<Button onClick={() => navigate('/drafts')}>查看草稿箱</Button>}
               />
             </div>
           )}
@@ -561,6 +591,39 @@ function StatsRow({ icon, label, value, unit }: { icon: React.ReactNode; label: 
       <span className="text-[14px] font-semibold text-gray-800">
         {value.toLocaleString()} <span className="text-gray-400 font-normal text-[12px]">{unit}</span>
       </span>
+    </div>
+  );
+}
+
+function ProfileCircleCard({ circle, onClick }: { circle: CircleSummary; onClick: () => void }) {
+  return (
+    <div
+      className="flex items-center gap-3 p-4 bg-white border border-gray-100 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors shadow-sm group"
+      onClick={onClick}
+    >
+      <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+        <img
+          src={circle.avatarUrl || `https://i.pravatar.cc/150?u=c${circle.id}`}
+          className="w-full h-full object-cover"
+          alt={circle.name}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-gray-900 text-sm truncate group-hover:text-blue-600 transition-colors">
+            {circle.name}
+          </span>
+          {circle.visibility === 'PRIVATE' && (
+            <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-medium shrink-0">付费</span>
+          )}
+        </div>
+        <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-3">
+          <span>{formatCount(circle.memberCount)} 成员</span>
+          <span>{formatCount(circle.postCount)} 帖子</span>
+          {circle.category && <span className="text-gray-300">·</span>}
+          {circle.category && <span>{circle.category}</span>}
+        </div>
+      </div>
     </div>
   );
 }
