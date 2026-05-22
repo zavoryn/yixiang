@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Star, MoreHorizontal, ThumbsUp, MessageCircle, Share, CheckCircle2,
+  TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
@@ -11,6 +12,7 @@ import { hotService } from '@/services/hotService';
 import { recommendService } from '@/services/recommendService';
 import { topicService } from '@/services/topicService';
 import { relationService } from '@/services/relationService';
+import { stockService } from '@/services/stockService';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -307,9 +309,42 @@ function HomeRightRail() {
     queryKey: ['topics', 'hot'],
     queryFn: () => topicService.hot(5),
   });
+  const { data: marketData = [] } = useQuery({
+    queryKey: ['stock', 'market'],
+    queryFn: () => stockService.market(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
 
   return (
     <>
+      {/* Market indices */}
+      {marketData.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={16} className="text-blue-500" />
+            <h3 className="font-bold text-[16px] text-gray-900">大盘行情</h3>
+          </div>
+          <div className="flex flex-col gap-3">
+            {marketData.map((idx) => {
+              const up = idx.change >= 0;
+              return (
+                <div key={idx.code} className="flex items-center justify-between">
+                  <span className="text-[14px] text-gray-700">{idx.name}</span>
+                  <div className="text-right">
+                    <div className={`text-[14px] font-bold ${up ? 'text-red-500' : 'text-green-600'}`}>{idx.price.toFixed(2)}</div>
+                    <div className={`text-[12px] flex items-center gap-0.5 justify-end ${up ? 'text-red-500' : 'text-green-600'}`}>
+                      {up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                      {up ? '+' : ''}{idx.changePercent.toFixed(2)}%
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Following activity */}
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
         <div className="flex justify-between items-center mb-5">

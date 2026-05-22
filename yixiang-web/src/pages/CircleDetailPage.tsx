@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Volume2, ChevronRight, ThumbsUp, MessageCircle, MessageSquare,
-  Eye, Download, HelpCircle, Check, Bell, Hash, LayoutGrid,
+  Eye, Download, HelpCircle, Check, Bell, Hash, LayoutGrid, CheckCircle2,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { circleService } from '@/services/circleService';
@@ -11,11 +11,12 @@ import { topicService } from '@/services/topicService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatCount } from '@/lib/formatters';
+import { formatCount, formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
 import type { CircleDetail } from '@/types/circle';
+import type { FeedItem } from '@/types/knowpost';
 
-const TABS = ['首页', '帖子', '问答', '成员', '文件', '精华', '设置'];
+const TABS = ['首页', '帖子', '成员'];
 
 export default function CircleDetailPage() {
   const navigate = useNavigate();
@@ -29,10 +30,22 @@ export default function CircleDetailPage() {
     enabled: circleId != null,
   });
 
-  const { data: featuredPosts } = useQuery({
+  const { data: featuredPostsResp } = useQuery({
     queryKey: ['circle', circleId, 'posts', 'featured'],
     queryFn: () => circleService.posts(circleId!, true, undefined, 10),
     enabled: circleId != null,
+  });
+
+  const { data: allPostsResp, isLoading: postsLoading } = useQuery({
+    queryKey: ['circle', circleId, 'posts', 'all'],
+    queryFn: () => circleService.posts(circleId!, false, undefined, 20),
+    enabled: circleId != null && activeTab === '帖子',
+  });
+
+  const { data: membersResp, isLoading: membersLoading } = useQuery({
+    queryKey: ['circle', circleId, 'members'],
+    queryFn: () => circleService.members(circleId!, 1, 20),
+    enabled: circleId != null && activeTab === '成员',
   });
 
   const { data: hotTopics } = useQuery({
@@ -167,14 +180,49 @@ export default function CircleDetailPage() {
           ))}
         </div>
 
-        {/* Non-首页 tabs: honest empty states */}
-        {activeTab !== '首页' && (
-          <div className="py-16">
-            <EmptyState
-              icon={Bell}
-              title={`「${activeTab}」暂未开放`}
-              description="该功能需要后端专用接口支持，敬请期待"
-            />
+        {/* 帖子 tab */}
+        {activeTab === '帖子' && (
+          <div className="space-y-4">
+            {postsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+              </div>
+            ) : (allPostsResp?.items ?? []).length === 0 ? (
+              <EmptyState icon={MessageSquare} title="暂无帖子" description="圈内还没有帖子，来发第一篇吧" />
+            ) : (
+              (allPostsResp?.items ?? []).map((post) => (
+                <CirclePostCard key={post.id} post={post} onClick={() => navigate(`/posts/${post.id}`)} />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 成员 tab */}
+        {activeTab === '成员' && (
+          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+            {membersLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+              </div>
+            ) : (membersResp?.items ?? []).length === 0 ? (
+              <EmptyState icon={LayoutGrid} title="暂无成员" description="" />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {membersResp!.items.map((member) => (
+                  <div key={member.userId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/users/${member.userId}`)}>
+                    <img src={member.avatar || `https://i.pravatar.cc/150?u=m${member.userId}`} className="w-10 h-10 rounded-full object-cover" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-gray-900 text-sm truncate">{member.nickname}</span>
+                        {member.verified && <CheckCircle2 size={14} className="text-blue-500 fill-blue-500 shrink-0" />}
+                      </div>
+                      <div className="text-xs text-gray-400">{member.role === 'OWNER' ? '圈主' : member.role === 'ADMIN' ? '管理员' : '成员'}</div>
+                    </div>
+                    {member.joinedAt && <span className="text-xs text-gray-400 shrink-0">{formatRelativeTime(member.joinedAt)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -201,33 +249,10 @@ export default function CircleDetailPage() {
             {/* Pinned posts */}
             <div>
               <h2 className="text-lg font-bold text-gray-800 mb-4 px-1">置顶帖子</h2>
-              {featuredPosts && featuredPosts.length > 0 ? (
+              {(featuredPostsResp?.items ?? []).length > 0 ? (
                 <div className="space-y-4">
-                  {featuredPosts.map((post: Record<string, unknown>) => (
-                    <div key={String(post.id)} className="bg-white rounded-xl p-4 flex gap-4 hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm cursor-pointer group">
-                      <div className="w-40 h-28 shrink-0 rounded-lg overflow-hidden relative">
-                        <img src={String(post.coverImage ?? post.image ?? 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=400')} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">
-                          置顶
-                        </div>
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between py-0.5">
-                        <div>
-                          <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                            {String(post.title ?? '')}
-                          </h3>
-                          <p className="text-sm text-gray-500 line-clamp-1">{String(post.description ?? '')}</p>
-                        </div>
-                        <div className="flex items-center gap-4 text-gray-400 text-sm mt-2">
-                          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
-                            <ThumbsUp size={14} /> {formatCount(Number(post.likeCount ?? 0))}
-                          </span>
-                          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
-                            <MessageCircle size={14} /> {formatCount(Number(post.commentCount ?? 0))}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  {featuredPostsResp!.items.map((post) => (
+                    <CirclePostCard key={post.id} post={post} featured onClick={() => navigate(`/posts/${post.id}`)} />
                   ))}
                 </div>
               ) : (
@@ -364,5 +389,36 @@ function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopi
         </div>
       )}
     </>
+  );
+}
+
+function CirclePostCard({ post, onClick, featured = false }: { post: FeedItem; onClick: () => void; featured?: boolean }) {
+  return (
+    <div className="bg-white rounded-xl p-4 flex gap-4 hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm cursor-pointer group" onClick={onClick}>
+      <div className="w-36 h-24 shrink-0 rounded-lg overflow-hidden relative bg-gray-100">
+        <img
+          src={post.coverImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=400'}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        {featured && (
+          <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">置顶</div>
+        )}
+      </div>
+      <div className="flex-1 flex flex-col justify-between py-0.5">
+        <div>
+          <h3 className="text-base font-bold text-gray-900 mb-1.5 line-clamp-1 group-hover:text-blue-600 transition-colors">{post.title}</h3>
+          <p className="text-sm text-gray-500 line-clamp-1">{post.description}</p>
+        </div>
+        <div className="flex items-center gap-4 text-gray-400 text-sm mt-2">
+          <span className="text-xs text-gray-500">{post.authorNickname}</span>
+          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+            <ThumbsUp size={13} /> {formatCount(post.likeCount ?? 0)}
+          </span>
+          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+            <MessageCircle size={13} /> {formatCount(post.commentCount ?? 0)}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -10,7 +10,6 @@ import org.apache.ibatis.annotations.Param;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 @Mapper
 public interface KnowPostMapper {
@@ -59,10 +58,10 @@ public interface KnowPostMapper {
     List<KnowPostFeedRow> listFeedByIds(@Param("ids") Collection<Long> ids);
 
     // 圈子帖子列表（cursor-based）
-    List<Map<String, Object>> listByCircle(@Param("circleId") long circleId,
-                                           @Param("isFeatured") Integer isFeatured,
-                                           @Param("cursor") String cursor,
-                                           @Param("size") int size);
+    List<KnowPostFeedRow> listByCircle(@Param("circleId") long circleId,
+                                       @Param("isFeatured") Integer isFeatured,
+                                       @Param("cursor") String cursor,
+                                       @Param("size") int size);
 
     // 设置精华标记
     int setFeatured(@Param("postId") long postId,

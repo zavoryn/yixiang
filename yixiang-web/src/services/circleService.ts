@@ -1,7 +1,14 @@
 import { apiFetch } from "@/lib/apiClient";
-import type { CircleDetail, CircleListResponse, CircleSummary } from '@/types/circle';
+import type { CircleDetail, CircleListResponse, CircleSummary, CircleMemberListResponse } from '@/types/circle';
+import type { FeedItem } from '@/types/knowpost';
 
 const BASE = '/api/v1/circles';
+
+export interface CirclePostsResponse {
+  items: FeedItem[];
+  hasMore: boolean;
+  nextCursor: string | null;
+}
 
 export const circleService = {
   list: (params: { category?: string; keyword?: string; page?: number; size?: number } = {}) => {
@@ -27,9 +34,14 @@ export const circleService = {
 
   joined: () => apiFetch<CircleSummary[]>(`${BASE}/joined`),
 
-  posts: (id: number, featured = false, cursor?: string, size = 20) => {
+  posts: (id: number, featured = false, cursor?: string, size = 20): Promise<CirclePostsResponse> => {
     const q = new URLSearchParams({ featured: String(featured), size: String(size) });
     if (cursor) q.set('cursor', cursor);
-    return apiFetch<Record<string, unknown>[]>(`${BASE}/${id}/posts?${q.toString()}`);
+    return apiFetch<CirclePostsResponse>(`${BASE}/${id}/posts?${q.toString()}`);
+  },
+
+  members: (id: number, page = 1, size = 20): Promise<CircleMemberListResponse> => {
+    const q = new URLSearchParams({ page: String(page), size: String(size) });
+    return apiFetch<CircleMemberListResponse>(`${BASE}/${id}/members?${q.toString()}`);
   },
 };

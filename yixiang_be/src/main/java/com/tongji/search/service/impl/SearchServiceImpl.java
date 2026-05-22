@@ -142,7 +142,8 @@ public class SearchServiceImpl implements SearchService {
                     liked,
                     faved,
                     null,
-                    List.of(), ""
+                    List.of(), "",
+                    null
             ));
         }
 

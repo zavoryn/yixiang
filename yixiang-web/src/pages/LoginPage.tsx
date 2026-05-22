@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
 import {
   User, Lock, EyeOff, Eye, MessageCircle, Users, GraduationCap,
   ShieldCheck, TrendingUp
@@ -10,6 +11,7 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { stockService } from '@/services/stockService';
 
 const loginSchema = z.object({
   identifier: z.string().min(1, '请输入手机号或邮箱'),
@@ -24,6 +26,15 @@ export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const [loginType, setLoginType] = useState<'account' | 'sms'>('account');
   const [showPassword, setShowPassword] = useState(false);
+  const [activeIndexIdx, setActiveIndexIdx] = useState(0);
+
+  const { data: marketData = [] } = useQuery({
+    queryKey: ['stock', 'market'],
+    queryFn: () => stockService.market(),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const displayIndex = marketData[activeIndexIdx] ?? null;
 
   useEffect(() => {
     if (isAuthenticated) navigate('/', { replace: true });
@@ -103,39 +114,47 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Stock index mockup card */}
+          {/* Stock index live card */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.1)] w-[400px] mb-12 border border-white/50 relative ml-8">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-red-100 rounded text-red-500 flex items-center justify-center font-bold text-xs">A</div>
-                <span className="font-bold text-gray-800 text-lg">上证指数</span>
-                <span className="text-gray-400 text-sm">000001.SH</span>
+            {marketData.length > 0 && (
+              <div className="flex gap-2 mb-4">
+                {marketData.map((idx, i) => (
+                  <button
+                    key={idx.code}
+                    onClick={() => setActiveIndexIdx(i)}
+                    className={`text-xs px-2 py-1 rounded-md transition-colors ${
+                      i === activeIndexIdx ? 'bg-blue-100 text-blue-700 font-medium' : 'text-gray-500 hover:bg-gray-100'
+                    }`}
+                  >
+                    {idx.name}
+                  </button>
+                ))}
               </div>
-            </div>
-            <div className="flex justify-between items-end mb-4">
-              <div>
-                <div className="text-4xl font-bold text-[#E53935] mb-1">3,128.08</div>
-                <div className="text-[#E53935] font-medium flex gap-3 text-lg">
-                  <span>+18.36</span>
-                  <span>+0.59%</span>
+            )}
+            {displayIndex ? (
+              <>
+                <div className="flex justify-between items-end mb-4">
+                  <div>
+                    <div className={`text-4xl font-bold mb-1 ${displayIndex.change >= 0 ? 'text-[#E53935]' : 'text-[#10B981]'}`}>
+                      {displayIndex.price.toFixed(2)}
+                    </div>
+                    <div className={`font-medium flex gap-3 text-lg ${displayIndex.change >= 0 ? 'text-[#E53935]' : 'text-[#10B981]'}`}>
+                      <span>{displayIndex.change >= 0 ? '+' : ''}{displayIndex.change.toFixed(2)}</span>
+                      <span>{displayIndex.changePercent >= 0 ? '+' : ''}{displayIndex.changePercent.toFixed(2)}%</span>
+                    </div>
+                  </div>
+                  <div className="w-24 h-12">
+                    <svg viewBox="0 0 100 30" className="w-full h-full">
+                      <path d="M0 25 L10 22 L20 28 L30 15 L40 18 L50 5 L60 10 L70 2 L80 8 L90 5 L100 12" fill="none" stroke={displayIndex.change >= 0 ? '#E53935' : '#10B981'} strokeWidth="1.5" />
+                      <path d="M0 30 L0 25 L10 22 L20 28 L30 15 L40 18 L50 5 L60 10 L70 2 L80 8 L90 5 L100 12 L100 30 Z" fill={displayIndex.change >= 0 ? '#E53935' : '#10B981'} fillOpacity="0.15" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-              <div className="w-24 h-12">
-                <svg viewBox="0 0 100 30" className="w-full h-full">
-                  <path d="M0 25 L10 22 L20 28 L30 15 L40 18 L50 5 L60 10 L70 2 L80 8 L90 5 L100 12" fill="none" stroke="#E53935" strokeWidth="1.5" />
-                  <path d="M0 30 L0 25 L10 22 L20 28 L30 15 L40 18 L50 5 L60 10 L70 2 L80 8 L90 5 L100 12 L100 30 Z" fill="#E53935" fillOpacity="0.15" />
-                </svg>
-              </div>
-            </div>
-            <div className="grid grid-cols-4 gap-y-2 text-xs text-gray-500 border-t border-gray-100 pt-3">
-              <div>今开</div><div className="text-gray-800 font-medium">3,112.02</div>
-              <div>最高</div><div className="text-[#E53935] font-medium">3,132.65</div>
-              <div>成交量</div><div className="text-gray-800 font-medium text-right">3.89亿手</div>
-              <div>昨收</div><div className="text-gray-800 font-medium">3,109.72</div>
-              <div>最低</div><div className="text-[#10B981] font-medium">3,104.84</div>
-              <div>成交额</div><div className="text-gray-800 font-medium text-right">4,621.31亿</div>
-            </div>
-            <div className="text-[10px] text-gray-400 mt-4">更新于 2026-05-20 15:00:00</div>
+                <div className="text-xs text-gray-400">实时大盘行情</div>
+              </>
+            ) : (
+              <div className="py-4 text-center text-gray-400 text-sm">加载行情中...</div>
+            )}
           </div>
 
           {/* Features grid */}

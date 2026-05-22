@@ -609,4 +609,16 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             redis.expire(key, Duration.ofSeconds(target));
         }
     }
+
+    @Override
+    public FeedPageResponse getCirclePosts(long circleId, Boolean featured, String cursor, int size, Long viewerUserId) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        Integer featuredParam = (featured != null && featured) ? 1 : null;
+        List<KnowPostFeedRow> rows = mapper.listByCircle(circleId, featuredParam, cursor, safeSize + 1);
+        boolean hasMore = rows.size() > safeSize;
+        if (hasMore) rows = rows.subList(0, safeSize);
+        String nextCursor = hasMore && !rows.isEmpty() ? String.valueOf(rows.getLast().getId()) : null;
+        List<FeedItemResponse> items = mapRowsToItems(rows, viewerUserId, false);
+        return new FeedPageResponse(items, 1, safeSize, hasMore, nextCursor);
+    }
 }

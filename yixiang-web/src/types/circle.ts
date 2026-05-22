@@ -29,3 +29,20 @@ export interface CircleListResponse {
   page: number;
   size: number;
 }
+
+export interface CircleMemberItem {
+  userId: number;
+  nickname: string;
+  avatar: string | null;
+  role: 'OWNER' | 'ADMIN' | 'MEMBER';
+  verified: boolean;
+  joinedAt: string | null;
+}
+
+export interface CircleMemberListResponse {
+  items: CircleMemberItem[];
+  total: number;
+  page: number;
+  size: number;
+  hasMore: boolean;
+}
