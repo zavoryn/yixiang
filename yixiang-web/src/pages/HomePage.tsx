@@ -358,18 +358,31 @@ function HomeRightRail() {
             <p className="text-sm text-gray-400">登录后查看关注动态</p>
           ) : (activities?.items?.length ?? 0) === 0 ? (
             <p className="text-sm text-gray-400">暂无关注动态</p>
-          ) : activities!.items.map((activity) => (
-            <div key={activity.id} className="flex items-start gap-3">
-              <img src={activity.actor.avatar || `https://i.pravatar.cc/150?u=${activity.actor.id}`} className="w-9 h-9 rounded-full object-cover" />
-              <div className="flex flex-col mt-0.5">
-                <div className="text-[14px]">
-                  <span className="font-medium text-gray-900 mr-2">{activity.actor.nickname}</span>
-                  <span className="text-blue-600 text-[13px]">{activity.type}</span>
+          ) : activities!.items.map((activity) => {
+            const ACTION_LABEL: Record<string, { text: string; color: string }> = {
+              LIKE:     { text: '点赞了帖子', color: 'text-red-500' },
+              FAVORITE: { text: '收藏了帖子', color: 'text-yellow-500' },
+              POST:     { text: '发布了帖子', color: 'text-blue-600' },
+              FOLLOW:   { text: '关注了用户', color: 'text-green-600' },
+            };
+            const action = ACTION_LABEL[activity.type] ?? { text: activity.type, color: 'text-gray-500' };
+            const postTitle = activity.payload?.title as string | undefined;
+            return (
+              <div key={activity.id} className="flex items-start gap-3">
+                <img src={activity.actor?.avatar || `https://i.pravatar.cc/150?u=${activity.actor?.id}`} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] leading-snug">
+                    <span className="font-medium text-gray-900">{activity.actor?.nickname}</span>
+                    <span className={`text-[13px] ml-1 ${action.color}`}>{action.text}</span>
+                  </div>
+                  {postTitle && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{postTitle}</p>
+                  )}
+                  <span className="text-xs text-gray-400">{formatRelativeTime(activity.createdAt)}</span>
                 </div>
-                <span className="text-xs text-gray-400 mt-1">{formatRelativeTime(activity.createdAt)}</span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
