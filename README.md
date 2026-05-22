@@ -1,4 +1,4 @@
-# 颐享 (YiXiang) - 社区互动平台
+# 颐享 (YiXiang) — 知识分享社区
 
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=flat-square&logo=springboot&logoColor=white)
@@ -7,91 +7,140 @@
 ![Kafka](https://img.shields.io/badge/Kafka-3.x-231F20?style=flat-square&logo=apachekafka&logoColor=white)
 ![Elasticsearch](https://img.shields.io/badge/Elasticsearch-9.x-005571?style=flat-square&logo=elasticsearch&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 
-> 一个面向证券社区的社交互动平台，为股票投资者提供发帖互动、知识分享与用户关系链服务。后端采用 Spring Boot 微服务架构，重点解决了高频互动场景下的性能与数据一致性问题。
+一个面向投资者的知识分享社区平台，支持发帖互动、关注关系链、全文搜索与 AI 智能问答。后端采用 Spring Boot + 事件驱动架构，重点解决高频互动场景下的性能与数据一致性问题。
 
-## 项目说明
+## 功能概览
 
-本项目从真实的证券社区平台中抽取了**社区互动**（点赞、收藏、评论）与**用户关系链**（关注、取关、Feed 流）等核心模块，进行独立重构与开源展示。项目中的业务逻辑与技术方案来源于生产环境实践，但已移除业务敏感部分，并非完整的线上项目。
+### 已实现
 
-## 技术架构
+| 模块 | 功能 |
+|------|------|
+| **用户系统** | 注册/登录、JWT 双令牌认证（RS256）、个人主页、头像上传、标签管理、访客统计 |
+| **内容发布** | 富文本发帖（Markdown）、草稿箱、图片/视频上传（OSS 预签名直传）、圈子选择 |
+| **社交互动** | 点赞/收藏（Redis + Lua 原子操作）、评论、关注/取关 |
+| **信息流** | 首页 Feed（推荐/关注/热门）、三级缓存（Caffeine → Redis 页面 → Redis 片段）、热点检测 |
+| **圈子** | 创建圈子、加入/退出、圈子主页（帖子/成员/问答/精华/文件）、圈子广场搜索 |
+| **搜索** | 全文检索（帖子/用户/话题/圈子）、search_after 游标分页、热门搜索 |
+| **私信** | 一对一私信、会话列表、实时消息 |
+| **通知** | 点赞/评论/关注通知、未读计数 |
+| **收藏** | 收藏夹管理、分类筛选 |
+| **AI 问答** | 基于 RAG 的文档问答、SSE 流式生成、向量检索 |
+| **数据一致性** | Outbox + Canal + Kafka 事件驱动、BitMap 幂等防重、Kafka 异常回放补偿 |
 
-| 层级 | 技术选型 |
-|------|---------|
-| **后端框架** | Java 21 + Spring Boot 3.2 + Spring Security + MyBatis-Plus |
-| **数据存储** | MySQL 8.0 + Redis 7 (Lua 脚本) + Elasticsearch 9.x |
-| **消息中间件** | Kafka + Canal (Binlog 监听) |
-| **缓存策略** | Caffeine (本地) + Redis (分布式) 三级缓存 |
-| **AI 能力** | Spring AI + RAG 向量检索 + SSE 流式生成 |
-| **对象存储** | 阿里云 OSS |
-| **前端** | React 18 + TypeScript + Vite 5 + CSS Modules |
+### 待实现（欢迎贡献）
 
-## 核心功能
+| 模块 | 说明 |
+|------|------|
+| **管理后台** | 用户管理、内容审核、数据统计 Dashboard、运营配置等后台管理系统 |
+| **移动端 App** | iOS / Android 客户端（React Native / Flutter / 原生均可） |
 
-### 1. 点赞/收藏链路
-Redis + Lua 原子更新 + 异步写回/批量聚合，优化高频互动场景下的数据库写压力。
+> 如果你对管理后台或移动端开发感兴趣，欢迎提交 PR 或 Issue 讨论方案。
 
-### 2. 互动链路一致性
-BitMap 实现幂等防重与状态重建 + Kafka 回放机制异常补偿，保障缓存与数据库一致性。
+## 技术栈
 
-### 3. 关注/取关链路
-Outbox + Canal + Kafka 事件驱动，将粉丝表、计数表、缓存三类下游逻辑异步解耦。
+| 层级 | 技术 |
+|------|------|
+| **后端框架** | Java 21, Spring Boot 3.2, Spring Security, MyBatis |
+| **数据存储** | MySQL 8.0, Redis 7（Redisson + Lua 脚本）, Elasticsearch 9.x |
+| **消息中间件** | Kafka 3.x, Canal（MySQL Binlog 订阅） |
+| **缓存** | Caffeine（本地）+ Redis（分布式）三级缓存 |
+| **AI** | Spring AI 1.0.3 + DeepSeek + OpenAI Embedding + RAG |
+| **对象存储** | 阿里云 OSS（预签名 URL 直传） |
+| **前端** | React 18, TypeScript 5, Vite 5, Tailwind CSS v4, shadcn/ui, TanStack Query v5, React Router v6 |
 
-### 4. 其他功能
-- **JWT 双令牌认证：** RS256 签名，15 分钟访问令牌 + 7 天刷新令牌，Redis 白名单即时撤销
-- **Feed 流：** 三级缓存（Caffeine → Redis 页面 → Redis 片段），热点检测 + 单飞锁防击穿
-- **全文搜索：** Elasticsearch 全文检索，search_after 游标分页，function_score 混合排序
-- **AI 智能问答：** Spring AI + RAG 向量检索 + SSE 流式生成
+### 后端模块
+
+```
+com.tongji
+├── auth/        认证授权（JWT 双令牌、验证码）
+├── cache/       三级缓存 + 热点检测 + 单飞锁
+├── common/      全局异常处理、错误码
+├── config/      基础设施配置（ES、Redis、线程池）
+├── counter/     点赞/收藏计数器（Redis SDS + BitMap + Kafka 聚合）
+├── knowpost/    帖子 CRUD + 发布流程（草稿 → 审核 → 发布）
+├── llm/         RAG 管线（向量检索 → 提示构建 → SSE 流式生成）
+├── profile/     用户主页、头像、标签
+├── relation/    关注/取关（Outbox + Canal + Kafka 事件驱动）
+├── search/      ES 全文搜索 + 索引管理
+├── storage/     OSS 预签名上传
+└── user/        用户领域模型
+```
 
 ## 项目结构
 
 ```
 yixiang/
-├── zhiguang_be/          # 后端 - Spring Boot
-│   ├── src/main/java/
-│   │   ├── controller/   # 接口层
-│   │   ├── service/      # 业务逻辑层
-│   │   ├── mapper/       # 数据访问层
-│   │   ├── config/       # 配置类
-│   │   └── common/       # 通用组件
-│   └── src/main/resources/
-└── zhiguang_fe/          # 前端 - React 18
-    ├── src/
-    │   ├── components/   # UI 组件
-    │   ├── pages/        # 页面
-    │   ├── hooks/        # 自定义 Hooks
-    │   └── api/          # 接口请求
-    └── package.json
+├── yixiang_be/             后端 — Spring Boot
+│   ├── src/main/java/com/tongji/
+│   ├── src/main/resources/
+│   │   ├── mapper/         MyBatis XML 映射
+│   │   ├── keys/           JWT 密钥（public.pem 公开，private.pem 本地）
+│   │   └── application.yml.example  配置模板
+│   └── db/
+│       ├── schema.sql      数据库建表
+│       ├── migrations/     迁移脚本
+│       └── seed_*.sql      测试数据
+├── yixiang-web/            前端 — React + TypeScript
+│   └── src/
+│       ├── pages/          16 个页面
+│       ├── components/     UI 组件（layout / ui / common）
+│       ├── features/       业务 Hooks（TanStack Query）
+│       ├── services/       API 客户端
+│       └── lib/            工具函数
+└── docs/                   设计文档与计划
 ```
 
-## 本地运行
+## 快速启动
 
 ### 环境要求
-- JDK 21+
-- Node.js 18+
-- MySQL 8.0
-- Redis 7.x
-- Elasticsearch 9.x
-- Kafka 3.x
+
+- JDK 21+, Node.js 18+
+- MySQL 8.0, Redis 7.x, Elasticsearch 9.x, Kafka 3.x
 
 ### 后端
 
 ```bash
-cd zhiguang_be
-./mvnw clean package -DskipTests
-./mvnw spring-boot:run
+cd yixiang_be
+
+# 1. 复制配置模板并填入你的数据库/Redis/ES 信息
+cp src/main/resources/application.yml.example src/main/resources/application.yml
+
+# 2. 生成 JWT 密钥对
+mkdir -p src/main/resources/keys
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 \
+  -out src/main/resources/keys/private.pem
+openssl rsa -pubout -in src/main/resources/keys/private.pem \
+  -out src/main/resources/keys/public.pem
+
+# 3. 初始化数据库
+# 执行 db/schema.sql 和 db/migrations/ 中的迁移脚本
+
+# 4. 启动
+mvn spring-boot:run
 ```
 
 ### 前端
 
 ```bash
-cd zhiguang_fe
+cd yixiang-web
 npm install
-npm run dev
+npm run dev        # 开发服务器 :5173，自动代理 /api → :8080
 ```
 
-前端开发服务器启动在 :5173，自动代理 /api 到后端 :8080。
+## 贡献指南
+
+欢迎任何形式的贡献，特别是以下方向：
+
+- **管理后台** — 基于 React 的后台管理系统（用户管理、内容审核、数据统计）
+- **移动端** — iOS / Android App（React Native、Flutter 或原生）
+- **功能增强** — Bug 修复、性能优化、新功能提案
+- **文档** — 完善技术文档、API 文档
+
+贡献前建议先开 Issue 讨论，避免重复工作。
 
 ## License
 
-本项目仅用于学习与展示，不可用于商业用途。
+MIT — 详见 [LICENSE](LICENSE) 文件。
