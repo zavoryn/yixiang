@@ -1,5 +1,10 @@
 package com.tongji.counter.favorite.impl;
 
+import com.tongji.common.exception.BusinessException;
+import com.tongji.common.exception.ErrorCode;
+import com.tongji.counter.favorite.FavoriteFolder;
+import com.tongji.counter.favorite.FavoriteFolderDto;
+import com.tongji.counter.favorite.FavoriteFolderMapper;
 import com.tongji.counter.favorite.FavoriteMapper;
 import com.tongji.counter.favorite.FavoriteService;
 import com.tongji.counter.favorite.FavoritesResponse;
@@ -16,10 +21,12 @@ import java.util.concurrent.ThreadLocalRandom;
 public class FavoriteServiceImpl implements FavoriteService {
 
     private final FavoriteMapper mapper;
+    private final FavoriteFolderMapper folderMapper;
     private final KnowPostMapper knowPostMapper;
 
-    public FavoriteServiceImpl(FavoriteMapper mapper, KnowPostMapper knowPostMapper) {
+    public FavoriteServiceImpl(FavoriteMapper mapper, FavoriteFolderMapper folderMapper, KnowPostMapper knowPostMapper) {
         this.mapper = mapper;
+        this.folderMapper = folderMapper;
         this.knowPostMapper = knowPostMapper;
     }
 
@@ -64,5 +71,36 @@ public class FavoriteServiceImpl implements FavoriteService {
 
         Long nextCursor = hasMore && !ids.isEmpty() ? ids.get(ids.size() - 1) : null;
         return new FavoritesResponse(items, nextCursor, hasMore);
+    }
+
+    @Override
+    public long createFolder(long userId, String name) {
+        if (folderMapper.countByUser(userId) >= 20) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "收藏夹数量已达上限（20个）");
+        }
+        long id = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
+        folderMapper.insert(id, userId, name);
+        return id;
+    }
+
+    @Override
+    public List<FavoriteFolderDto> listFolders(long userId) {
+        List<FavoriteFolder> folders = folderMapper.listByUser(userId);
+        List<FavoriteFolderDto> result = new ArrayList<>(folders.size());
+        for (FavoriteFolder f : folders) {
+            result.add(new FavoriteFolderDto(f.getId(), f.getName()));
+        }
+        return result;
+    }
+
+    @Override
+    public void deleteFolder(long userId, long folderId) {
+        mapper.unassignFolder(userId, folderId);
+        folderMapper.deleteById(folderId, userId);
+    }
+
+    @Override
+    public void assignFolder(long userId, long postId, Long folderId) {
+        mapper.assignFolder(userId, postId, folderId);
     }
 }

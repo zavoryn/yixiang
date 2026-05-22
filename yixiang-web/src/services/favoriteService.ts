@@ -7,10 +7,35 @@ export interface FavoritesResponse {
   hasMore: boolean;
 }
 
+export interface FavoriteFolder {
+  id: number;
+  name: string;
+}
+
+const BASE = '/api/v1/favorites';
+
 export const favoriteService = {
   list: (cursor?: number, size = 20) => {
     const params = new URLSearchParams({ size: String(size) });
     if (cursor) params.set('cursor', String(cursor));
-    return apiFetch<FavoritesResponse>(`/api/v1/favorites?${params.toString()}`);
+    return apiFetch<FavoritesResponse>(`${BASE}?${params.toString()}`);
+  },
+
+  listFolders: () => apiFetch<FavoriteFolder[]>(`${BASE}/folders`),
+
+  createFolder: (name: string) =>
+    apiFetch<{ id: number }>(`${BASE}/folders`, {
+      method: 'POST',
+      body: new URLSearchParams({ name }).toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }),
+
+  deleteFolder: (id: number) =>
+    apiFetch<void>(`${BASE}/folders/${id}`, { method: 'DELETE' }),
+
+  assignFolder: (postId: string, folderId: number | null) => {
+    const params = new URLSearchParams();
+    if (folderId != null) params.set('folderId', String(folderId));
+    return apiFetch<void>(`${BASE}/posts/${postId}/folder?${params.toString()}`, { method: 'PUT' });
   },
 };

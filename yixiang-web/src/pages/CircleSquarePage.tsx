@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle2, Package, ShieldCheck, MessageSquare, Ban, AlertCircle, Info,
 } from 'lucide-react';
@@ -10,18 +10,47 @@ import { recommendService } from '@/services/recommendService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { formatCount } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 
 const CATEGORIES = ['全部圈子', '投资策略', '短线交易', '价值投资', '行业研究', '技术分析', '宏观经济'];
+const CREATE_CATEGORIES = ['投资策略', '短线交易', '价值投资', '行业研究', '技术分析', '宏观经济'];
 
 export default function CircleSquarePage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'圈子广场' | '我的圈子'>('圈子广场');
   const [activeCategory, setActiveCategory] = useState('全部圈子');
   const [page, setPage] = useState(1);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    description: '',
+    category: '',
+    visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE',
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => circleService.create({
+      name: createForm.name.trim(),
+      description: createForm.description.trim() || undefined,
+      category: createForm.category || undefined,
+      visibility: createForm.visibility,
+    }),
+    onSuccess: (data) => {
+      toast.success('圈子创建成功！');
+      setShowCreateDialog(false);
+      setCreateForm({ name: '', description: '', category: '', visibility: 'PUBLIC' });
+      queryClient.invalidateQueries({ queryKey: ['circles'] });
+      navigate(`/circles/${data.id}`);
+    },
+    onError: () => toast.error('创建失败，请稍后重试'),
+  });
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['circles', activeTab, activeCategory, page],
@@ -108,7 +137,10 @@ export default function CircleSquarePage() {
                 </div>
               </div>
               <button
-                onClick={() => toast.info('创建圈子功能即将上线')}
+                onClick={() => {
+                  if (!isAuthenticated) { toast.error('请先登录'); return; }
+                  setShowCreateDialog(true);
+                }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap shadow-sm shadow-blue-200"
               >
                 创建圈子
@@ -323,6 +355,84 @@ export default function CircleSquarePage() {
           </ul>
         </div>
       </aside>
+
+      {/* Create Circle Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>创建圈子</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                圈子名称 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                maxLength={50}
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="请输入圈子名称（最多50字）"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">圈子简介</label>
+              <textarea
+                maxLength={500}
+                rows={3}
+                value={createForm.description}
+                onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="简单介绍一下你的圈子（最多500字）"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">所属分类</label>
+              <select
+                value={createForm.category}
+                onChange={(e) => setCreateForm((f) => ({ ...f, category: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 bg-white"
+              >
+                <option value="">请选择分类（可选）</option>
+                {CREATE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">圈子类型</label>
+              <div className="flex gap-4">
+                {(['PUBLIC', 'PRIVATE'] as const).map((v) => (
+                  <label key={v} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value={v}
+                      checked={createForm.visibility === v}
+                      onChange={() => setCreateForm((f) => ({ ...f, visibility: v }))}
+                      className="accent-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">
+                      {v === 'PUBLIC' ? '公开圈子（所有人可见）' : '私密圈子（需审核加入）'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>取消</Button>
+              <Button
+                onClick={() => createMutation.mutate()}
+                disabled={!createForm.name.trim() || createMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {createMutation.isPending ? '创建中...' : '创建圈子'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }

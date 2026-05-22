@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, ChevronDown, MoreHorizontal, ThumbsUp, MessageCircle,
-  Star, ChevronRight,
-  LayoutGrid, List as ListIcon, FolderOpen,
+  Star, ChevronRight, LayoutGrid, List as ListIcon, FolderOpen, Plus, Trash2,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { favoriteService } from '@/services/favoriteService';
@@ -12,19 +11,45 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { formatCount } from '@/lib/formatters';
-
-type TabKey = '全部收藏' | '帖子' | '话题' | '用户';
+import { toast } from 'sonner';
 
 export default function CollectionsPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabKey>('全部收藏');
-
-  const isPostTab = activeTab === '全部收藏' || activeTab === '帖子';
+  const queryClient = useQueryClient();
+  const [activeFolder, setActiveFolder] = useState<number | null>(null);
+  const [showCreateFolder, setShowCreateFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['favorites', activeTab],
-    queryFn: () => favoriteService.list(undefined, 20),
-    enabled: isPostTab,
+    queryKey: ['favorites', activeFolder],
+    queryFn: () => favoriteService.list(undefined, 50),
+  });
+
+  const { data: folders = [], refetch: refetchFolders } = useQuery({
+    queryKey: ['favorites', 'folders'],
+    queryFn: () => favoriteService.listFolders(),
+  });
+
+  const createFolderMutation = useMutation({
+    mutationFn: (name: string) => favoriteService.createFolder(name),
+    onSuccess: () => {
+      toast.success('收藏夹已创建');
+      setShowCreateFolder(false);
+      setNewFolderName('');
+      queryClient.invalidateQueries({ queryKey: ['favorites', 'folders'] });
+      refetchFolders();
+    },
+    onError: () => toast.error('创建失败'),
+  });
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: (id: number) => favoriteService.deleteFolder(id),
+    onSuccess: () => {
+      toast.success('收藏夹已删除');
+      if (activeFolder != null) setActiveFolder(null);
+      queryClient.invalidateQueries({ queryKey: ['favorites', 'folders'] });
+    },
+    onError: () => toast.error('删除失败'),
   });
 
   const posts = data?.items ?? [];
@@ -43,27 +68,34 @@ export default function CollectionsPage() {
               <button className="w-[36px] h-[36px] rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition-colors">
                 <Search size={16} />
               </button>
-              <button className="h-[36px] px-4 rounded-full border border-gray-200 text-[13px] font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                管理
-              </button>
             </div>
           </div>
 
-          {/* Tabs */}
+          {/* Folder tabs */}
           <div className="px-6 pt-4 border-b border-gray-100">
-            <div className="flex gap-8">
-              {(['全部收藏', '帖子', '话题', '用户'] as TabKey[]).map((tab) => (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                onClick={() => setActiveFolder(null)}
+                className={`px-4 py-2 rounded-full text-[14px] whitespace-nowrap transition-colors ${
+                  activeFolder === null
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                全部收藏
+              </button>
+              {folders.map((folder) => (
                 <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`pb-3 text-[16px] font-medium relative ${
-                    activeTab === tab ? 'text-blue-600' : 'text-gray-500 hover:text-gray-800'
+                  key={folder.id}
+                  onClick={() => setActiveFolder(folder.id)}
+                  className={`px-4 py-2 rounded-full text-[14px] whitespace-nowrap transition-colors flex items-center gap-1 ${
+                    activeFolder === folder.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
                   }`}
                 >
-                  {tab}
-                  {activeTab === tab && (
-                    <div className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-full" />
-                  )}
+                  <FolderOpen size={13} />
+                  {folder.name}
                 </button>
               ))}
             </div>
@@ -84,16 +116,8 @@ export default function CollectionsPage() {
             </div>
           </div>
 
-          {/* Non-post tabs: placeholder */}
-          {!isPostTab ? (
-            <div className="flex-1 flex items-center justify-center py-16">
-              <EmptyState
-                icon={Star}
-                title={`${activeTab}收藏暂未接入`}
-                description="当前仅支持帖子收藏，话题/用户收藏需要后端聚合接口"
-              />
-            </div>
-          ) : isLoading ? (
+          {/* Post list */}
+          {isLoading ? (
             <div className="p-6 space-y-4">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex gap-5">
@@ -135,15 +159,12 @@ export default function CollectionsPage() {
                   }`}
                   onClick={() => navigate(`/posts/${post.id}`)}
                 >
-                  {/* Thumbnail */}
                   <div className="w-[180px] h-[120px] rounded-xl overflow-hidden shrink-0">
                     <img
                       src={post.coverImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=300&h=180'}
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-
-                  {/* Content */}
                   <div className="flex-1 flex flex-col justify-between py-0.5">
                     <div>
                       <div className="flex items-start justify-between gap-4 mb-2">
@@ -155,23 +176,18 @@ export default function CollectionsPage() {
                           <MoreHorizontal size={20} className="cursor-pointer hover:text-gray-600" />
                         </div>
                       </div>
-
                       <div className="flex items-center gap-2 mb-2">
                         {post.authorAvatar && (
                           <img src={post.authorAvatar} className="w-5 h-5 rounded-full object-cover" />
                         )}
                         <span className="text-[13px] font-medium text-gray-700">{post.authorNickname}</span>
                       </div>
-
-                      <p className="text-[14px] text-gray-500 line-clamp-1 mb-4">
-                        {post.description}
-                      </p>
+                      <p className="text-[14px] text-gray-500 line-clamp-1 mb-4">{post.description}</p>
                     </div>
-
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex items-center gap-2">
                         {post.tags?.map((tag) => (
-                          <span key={tag} className="bg-[#f0f5ff] text-blue-600 text-[11px] px-2 py-0.5 rounded-md cursor-pointer hover:bg-blue-100 transition-colors">
+                          <span key={tag} className="bg-[#f0f5ff] text-blue-600 text-[11px] px-2 py-0.5 rounded-md">
                             {tag}
                           </span>
                         ))}
@@ -191,7 +207,6 @@ export default function CollectionsPage() {
             </div>
           )}
 
-          {/* Footer */}
           <div className="py-8 text-center text-[12px] text-gray-400 border-t border-gray-50">
             内容仅供学习交流，不构成投资建议，投资有风险，入市需谨慎。
           </div>
@@ -200,16 +215,91 @@ export default function CollectionsPage() {
 
       {/* Right sidebar */}
       <aside className="w-[320px] shrink-0 flex flex-col gap-4 max-lg:hidden">
-        {/* Collection folders — backend API pending */}
+        {/* Collection folders */}
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="font-bold text-[16px] text-gray-900">收藏夹分类</h3>
+            <h3 className="font-bold text-[16px] text-gray-900">收藏夹</h3>
+            <button
+              onClick={() => setShowCreateFolder(true)}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+            >
+              <Plus size={13} /> 新建
+            </button>
           </div>
-          <EmptyState
-            icon={FolderOpen}
-            title="收藏夹分类暂未接入"
-            description="分类管理功能需要后端收藏夹 API 支持"
-          />
+
+          {showCreateFolder && (
+            <div className="mb-4 flex gap-2">
+              <input
+                type="text"
+                maxLength={50}
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newFolderName.trim()) {
+                    createFolderMutation.mutate(newFolderName.trim());
+                  } else if (e.key === 'Escape') {
+                    setShowCreateFolder(false);
+                    setNewFolderName('');
+                  }
+                }}
+                placeholder="收藏夹名称"
+                autoFocus
+                className="flex-1 border border-gray-200 rounded px-2 py-1 text-sm outline-none focus:border-blue-400"
+              />
+              <button
+                onClick={() => {
+                  if (newFolderName.trim()) createFolderMutation.mutate(newFolderName.trim());
+                }}
+                disabled={!newFolderName.trim() || createFolderMutation.isPending}
+                className="bg-blue-600 text-white px-2.5 py-1 rounded text-xs font-medium disabled:opacity-50"
+              >
+                创建
+              </button>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setActiveFolder(null)}
+              className={`flex items-center justify-between px-3 py-2 rounded-lg text-[14px] transition-colors ${
+                activeFolder === null ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Star size={15} className="text-yellow-500" />
+                <span>默认收藏夹</span>
+              </div>
+              <span className="text-xs text-gray-400">{posts.length}</span>
+            </button>
+
+            {folders.map((folder) => (
+              <div
+                key={folder.id}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg text-[14px] transition-colors group cursor-pointer ${
+                  activeFolder === folder.id ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50 text-gray-700'
+                }`}
+                onClick={() => setActiveFolder(folder.id)}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <FolderOpen size={15} className="text-gray-400 shrink-0" />
+                  <span className="truncate">{folder.name}</span>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteFolderMutation.mutate(folder.id);
+                  }}
+                  className="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+
+            {folders.length === 0 && !showCreateFolder && (
+              <p className="text-xs text-gray-400 px-3 py-2">暂无收藏夹，点击「新建」创建</p>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
@@ -220,12 +310,9 @@ export default function CollectionsPage() {
               查看详情 <ChevronRight size={14} />
             </button>
           </div>
-
-          <div className="grid grid-cols-1 gap-3 mb-5">
-            <div className="bg-gray-50 rounded-xl py-3 px-4 border border-gray-100 flex items-center justify-between">
-              <div className="text-[13px] text-gray-500 font-medium">收藏内容</div>
-              <div className="font-bold text-[20px] text-gray-900 leading-none">{posts.length}</div>
-            </div>
+          <div className="bg-gray-50 rounded-xl py-3 px-4 border border-gray-100 flex items-center justify-between">
+            <div className="text-[13px] text-gray-500 font-medium">收藏内容</div>
+            <div className="font-bold text-[20px] text-gray-900 leading-none">{posts.length}</div>
           </div>
         </div>
 
@@ -233,11 +320,7 @@ export default function CollectionsPage() {
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-bold text-[16px] text-gray-900">最近收藏</h3>
-            <button className="text-[13px] text-gray-400 hover:text-gray-600 flex items-center transition-colors">
-              查看全部
-            </button>
           </div>
-
           <div className="flex flex-col gap-4">
             {posts.length > 0 ? (
               posts.slice(0, 3).map((item) => (
