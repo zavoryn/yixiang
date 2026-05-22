@@ -1,34 +1,27 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, X, Flame, RefreshCw, Clock, ChevronDown,
-  ThumbsUp, MessageCircle, Diamond,
+  ThumbsUp, MessageCircle, Diamond, Users, Hash, Layers,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { searchService } from '@/services/searchService';
+import { topicService } from '@/services/topicService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { formatCount } from '@/lib/formatters';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { FeedItem } from '@/types/knowpost';
+import type { UserSearchItem, TopicSearchItem } from '@/types/search';
+import type { CircleSummary } from '@/types/circle';
 
 const TABS = ['综合', '帖子', '用户', '话题', '圈子'];
 
-const MOCK_TRENDING = [
-  { text: '价值投资', tag: '热' },
-  { text: '财报分析', tag: '热' },
-  { text: '宁德时代', tag: '新' },
-  { text: '短线交易' },
-  { text: 'K线形态' },
-  { text: '半导体行业' },
-  { text: '宏观经济' },
-  { text: '巴菲特' },
-];
-
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const q = searchParams.get('q') ?? '';
   const [inputValue, setInputValue] = useState(q);
   const debouncedQuery = useDebounce(inputValue, 400);
@@ -37,10 +30,34 @@ export default function SearchPage() {
     try { return JSON.parse(localStorage.getItem('search_history') ?? '[]'); } catch { return []; }
   });
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['search', debouncedQuery],
+  const { data: postData, isLoading: postsLoading, error: postsError, refetch: refetchPosts } = useQuery({
+    queryKey: ['search', 'posts', debouncedQuery],
     queryFn: () => searchService.query({ q: debouncedQuery, size: 20 }),
-    enabled: debouncedQuery.length > 0,
+    enabled: debouncedQuery.length > 0 && (activeTab === 0 || activeTab === 1),
+  });
+
+  const { data: userData, isLoading: usersLoading } = useQuery({
+    queryKey: ['search', 'users', debouncedQuery],
+    queryFn: () => searchService.searchUsers(debouncedQuery),
+    enabled: debouncedQuery.length > 0 && (activeTab === 0 || activeTab === 2),
+  });
+
+  const { data: topicData, isLoading: topicsLoading } = useQuery({
+    queryKey: ['search', 'topics', debouncedQuery],
+    queryFn: () => searchService.searchTopics(debouncedQuery),
+    enabled: debouncedQuery.length > 0 && (activeTab === 0 || activeTab === 3),
+  });
+
+  const { data: circleData, isLoading: circlesLoading } = useQuery({
+    queryKey: ['search', 'circles', debouncedQuery],
+    queryFn: () => searchService.searchCircles(debouncedQuery),
+    enabled: debouncedQuery.length > 0 && (activeTab === 0 || activeTab === 4),
+  });
+
+  const { data: hotTopics = [], refetch: refetchHot } = useQuery({
+    queryKey: ['topics', 'hot', 8],
+    queryFn: () => topicService.hot(8),
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
@@ -61,7 +78,10 @@ export default function SearchPage() {
     }
   };
 
-  const items = data?.items ?? [];
+  const postItems = postData?.items ?? [];
+  const userItems = userData?.items ?? [];
+  const topicItems = topicData ?? [];
+  const circleItems = circleData?.items ?? [];
 
   return (
     <PageShell>
@@ -92,7 +112,6 @@ export default function SearchPage() {
         </div>
 
         {!debouncedQuery ? (
-          /* Empty state before search */
           <div className="bg-white rounded-xl p-8 text-center">
             <Search size={48} className="mx-auto text-gray-300 mb-4" />
             <p className="text-gray-500">输入关键词开始搜索</p>
@@ -113,58 +132,87 @@ export default function SearchPage() {
               ))}
             </div>
 
-            {/* Filters + Count */}
-            <div className="bg-white px-6 py-3 rounded-b-xl mb-4 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button className="flex items-center gap-1 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded border border-gray-200">
-                  综合排序 <ChevronDown size={14} />
-                </button>
-                <button className="flex items-center gap-1 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded border border-gray-200">
-                  全部时间 <ChevronDown size={14} />
-                </button>
-              </div>
-              <div className="text-sm text-gray-500">
-                {data ? `找到约 ${items.length} 条结果` : ''}
-              </div>
-            </div>
-
-            {/* Results */}
-            {isLoading ? (
-              <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex gap-4">
-                    <Skeleton className="w-[180px] h-[110px] rounded-lg" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-3/4" />
-                      <Skeleton className="h-4 w-1/3" />
-                      <Skeleton className="h-4 w-full" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </div>
+            {/* Tab content */}
+            {(activeTab === 0 || activeTab === 1) && (
+              <>
+                <div className="bg-white px-6 py-3 rounded-b-xl mb-4 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <button className="flex items-center gap-1 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded border border-gray-200">
+                      综合排序 <ChevronDown size={14} />
+                    </button>
+                    <button className="flex items-center gap-1 text-sm text-gray-600 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded border border-gray-200">
+                      全部时间 <ChevronDown size={14} />
+                    </button>
                   </div>
-                ))}
+                  <div className="text-sm text-gray-500">
+                    {postData ? `找到约 ${postItems.length} 条结果` : ''}
+                  </div>
+                </div>
+                {postsLoading ? (
+                  <PostsSkeleton />
+                ) : postsError ? (
+                  <div className="bg-white rounded-xl shadow-sm p-8">
+                    <EmptyState icon={Search} title="搜索失败" description="请稍后重试"
+                      action={<Button onClick={() => refetchPosts()}>重试</Button>} />
+                  </div>
+                ) : postItems.length === 0 ? (
+                  <div className="bg-white rounded-xl shadow-sm p-8">
+                    <EmptyState icon={Search} title="未找到相关内容" description={`没有找到与"${debouncedQuery}"相关的帖子`} />
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-xl shadow-sm">
+                    {postItems.map((post) => <PostResultCard key={post.id} post={post} />)}
+                  </div>
+                )}
+              </>
+            )}
+
+            {activeTab === 2 && (
+              <div className="bg-white rounded-b-xl shadow-sm">
+                {usersLoading ? (
+                  <UsersSkeleton />
+                ) : userItems.length === 0 ? (
+                  <div className="p-8">
+                    <EmptyState icon={Users} title="未找到相关用户" description={`没有找到与"${debouncedQuery}"相关的用户`} />
+                  </div>
+                ) : (
+                  userItems.map((user) => (
+                    <UserResultCard key={user.id} user={user} onClick={() => navigate(`/profile/${user.id}`)} />
+                  ))
+                )}
               </div>
-            ) : error ? (
-              <div className="bg-white rounded-xl shadow-sm p-8">
-                <EmptyState
-                  icon={Search}
-                  title="搜索失败"
-                  description={error instanceof Error ? error.message : '请稍后重试'}
-                  action={<Button onClick={() => refetch()}>重试</Button>}
-                />
+            )}
+
+            {activeTab === 3 && (
+              <div className="bg-white rounded-b-xl shadow-sm">
+                {topicsLoading ? (
+                  <TopicsSkeleton />
+                ) : topicItems.length === 0 ? (
+                  <div className="p-8">
+                    <EmptyState icon={Hash} title="未找到相关话题" description={`没有找到与"${debouncedQuery}"相关的话题`} />
+                  </div>
+                ) : (
+                  topicItems.map((topic) => (
+                    <TopicResultCard key={topic.tag} topic={topic}
+                      onClick={() => { setInputValue(topic.tag); setActiveTab(0); handleSearch(); }} />
+                  ))
+                )}
               </div>
-            ) : items.length === 0 && debouncedQuery ? (
-              <div className="bg-white rounded-xl shadow-sm p-8">
-                <EmptyState
-                  icon={Search}
-                  title="未找到相关内容"
-                  description={`没有找到与"${debouncedQuery}"相关的结果`}
-                />
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm">
-                {items.map((post) => (
-                  <PostResultCard key={post.id} post={post} />
-                ))}
+            )}
+
+            {activeTab === 4 && (
+              <div className="bg-white rounded-b-xl shadow-sm">
+                {circlesLoading ? (
+                  <CirclesSkeleton />
+                ) : circleItems.length === 0 ? (
+                  <div className="p-8">
+                    <EmptyState icon={Layers} title="未找到相关圈子" description={`没有找到与"${debouncedQuery}"相关的圈子`} />
+                  </div>
+                ) : (
+                  circleItems.map((circle) => (
+                    <CircleResultCard key={circle.id} circle={circle} onClick={() => navigate(`/circles/${circle.id}`)} />
+                  ))
+                )}
               </div>
             )}
           </>
@@ -173,29 +221,28 @@ export default function SearchPage() {
 
       {/* Right sidebar */}
       <aside className="w-[320px] shrink-0 flex flex-col gap-4 max-lg:hidden">
-        {/* Trending */}
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Flame size={20} className="text-red-500" />
               <h3 className="font-bold text-gray-900 text-[16px]">热门搜索</h3>
             </div>
-            <button className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
+            <button onClick={() => refetchHot()} className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1">
               换一换 <RefreshCw size={12} />
             </button>
           </div>
           <ul className="space-y-3.5">
-            {MOCK_TRENDING.map((item, idx) => (
-              <li key={idx} className="flex items-center gap-3 cursor-pointer group" onClick={() => setInputValue(item.text)}>
+            {hotTopics.map((item, idx) => (
+              <li key={item.tag} className="flex items-center gap-3 cursor-pointer group" onClick={() => setInputValue(item.tag)}>
                 <span className={`w-4 text-center text-[15px] font-bold ${idx < 3 ? 'text-red-500' : 'text-gray-300'}`}>
                   {idx + 1}
                 </span>
                 <span className="text-[14px] text-gray-700 group-hover:text-[#165DFF] transition-colors flex-1 truncate">
-                  {item.text}
+                  {item.tag}
                 </span>
-                {item.tag && (
-                  <span className={`text-[10px] px-1 py-0.5 rounded leading-none ${item.tag === '热' ? 'bg-red-50 text-red-500 border border-red-100' : 'bg-orange-50 text-orange-500 border border-orange-100'}`}>
-                    {item.tag}
+                {idx < 3 && (
+                  <span className="text-[10px] px-1 py-0.5 rounded leading-none bg-red-50 text-red-500 border border-red-100">
+                    热
                   </span>
                 )}
               </li>
@@ -217,7 +264,16 @@ export default function SearchPage() {
                     <Clock size={14} className="text-gray-400" />
                     <span className="text-[14px]">{item}</span>
                   </div>
-                  <X size={14} className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <X
+                    size={14}
+                    className="text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const updated = searchHistory.filter((_, i) => i !== idx);
+                      setSearchHistory(updated);
+                      localStorage.setItem('search_history', JSON.stringify(updated));
+                    }}
+                  />
                 </li>
               ))}
             </ul>
@@ -271,6 +327,169 @@ function PostResultCard({ post }: { post: FeedItem }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function UserResultCard({ user, onClick }: { user: UserSearchItem; onClick: () => void }) {
+  return (
+    <div
+      className="p-5 flex items-center gap-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+      onClick={onClick}
+    >
+      <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100 shrink-0">
+        {user.avatar ? (
+          <img src={user.avatar} alt={user.nickname} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400 text-lg font-bold">
+            {user.nickname.charAt(0)}
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="font-semibold text-gray-900 text-[15px]">{user.nickname}</span>
+          {user.verified && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 font-bold">
+              认证
+            </span>
+          )}
+          {user.roleTitle && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100">
+              {user.roleTitle}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 text-xs text-gray-400">
+          <span>{formatCount(user.followerCount)} 粉丝</span>
+          <span>{formatCount(user.followingCount)} 关注</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TopicResultCard({ topic, onClick }: { topic: TopicSearchItem; onClick: () => void }) {
+  return (
+    <div
+      className="p-5 flex items-center gap-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+      onClick={onClick}
+    >
+      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+        <Hash size={18} className="text-[#165DFF]" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-gray-900 text-[15px] mb-0.5">#{topic.tag}</div>
+        <div className="flex items-center gap-3 text-xs text-gray-400">
+          <span>{formatCount(topic.postCount)} 帖子</span>
+          <span>{formatCount(topic.viewCount)} 浏览</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CircleResultCard({ circle, onClick }: { circle: CircleSummary; onClick: () => void }) {
+  return (
+    <div
+      className="p-5 flex items-center gap-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+      onClick={onClick}
+    >
+      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+        {circle.avatarUrl ? (
+          <img src={circle.avatarUrl} alt={circle.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <Layers size={20} />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="font-semibold text-gray-900 text-[15px]">{circle.name}</span>
+          {circle.visibility === 'PRIVATE' && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-500 border border-gray-200">私密</span>
+          )}
+          {circle.joined && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-100">已加入</span>
+          )}
+        </div>
+        {circle.description && (
+          <p className="text-xs text-gray-400 truncate mb-0.5">{circle.description}</p>
+        )}
+        <div className="flex items-center gap-3 text-xs text-gray-400">
+          <span>{formatCount(circle.memberCount)} 成员</span>
+          <span>{formatCount(circle.postCount)} 帖子</span>
+          {circle.category && <span>{circle.category}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PostsSkeleton() {
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6 space-y-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex gap-4">
+          <Skeleton className="w-[180px] h-[110px] rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function UsersSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="p-5 flex items-center gap-4">
+          <Skeleton className="w-12 h-12 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TopicsSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="p-5 flex items-center gap-4">
+          <Skeleton className="w-10 h-10 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CirclesSkeleton() {
+  return (
+    <div className="divide-y divide-gray-100">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="p-5 flex items-center gap-4">
+          <Skeleton className="w-12 h-12 rounded-lg" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-56" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

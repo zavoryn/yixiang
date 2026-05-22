@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.circle.mapper.CircleFileMapper">
+
+    <resultMap id="CircleFileMap" type="com.tongji.circle.model.CircleFile">
+        <id     property="id"           column="id"/>
+        <result property="circleId"     column="circle_id"/>
+        <result property="uploaderId"   column="uploader_id"/>
+        <result property="filename"     column="filename"/>
+        <result property="fileSize"     column="file_size"/>
+        <result property="mimeType"     column="mime_type"/>
+        <result property="ossKey"       column="oss_key"/>
+        <result property="ossUrl"       column="oss_url"/>
+        <result property="createdAt"    column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.tongji.circle.model.CircleFile">
+        INSERT INTO circle_files (id, circle_id, uploader_id, filename, file_size, mime_type, oss_key, oss_url)
+        VALUES (#{id}, #{circleId}, #{uploaderId}, #{filename}, #{fileSize}, #{mimeType}, #{ossKey}, #{ossUrl})
+    </insert>
+
+    <select id="listByCircle" resultMap="CircleFileMap">
+        SELECT * FROM circle_files
+        WHERE circle_id = #{circleId}
+        ORDER BY created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findById" resultMap="CircleFileMap">
+        SELECT * FROM circle_files WHERE id = #{id}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM circle_files WHERE id = #{id}
+    </delete>
+
+</mapper>

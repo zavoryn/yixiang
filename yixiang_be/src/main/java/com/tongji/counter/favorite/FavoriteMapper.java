@@ -16,5 +16,15 @@ public interface FavoriteMapper {
 
     List<Long> listPostIds(@Param("userId") long userId,
                            @Param("lastId") Long lastId,
-                           @Param("size") int size);
+                           @Param("size") int size,
+                           @Param("folderId") Long folderId);
+
+    void assignFolder(@Param("userId") long userId,
+                      @Param("postId") long postId,
+                      @Param("folderId") Long folderId);
+
+    void unassignFolder(@Param("userId") long userId,
+                        @Param("folderId") long folderId);
+
+    int countByUser(@Param("userId") long userId);
 }

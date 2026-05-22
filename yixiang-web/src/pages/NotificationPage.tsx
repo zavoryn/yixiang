@@ -1,16 +1,22 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle, Settings, Bell, MessageSquare, ThumbsUp,
-  UserPlus, Star, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon
+  UserPlus, Star, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon, CheckCircle2,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useNotifications } from '@/features/notification/useNotifications';
 import { useUnreadCount } from '@/features/notification/useUnreadCount';
 import { notificationService } from '@/services/notificationService';
+import { recommendService } from '@/services/recommendService';
+import { relationService } from '@/services/relationService';
+import { useFollow } from '@/features/relation/useFollow';
+import { useUnfollow } from '@/features/relation/useUnfollow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
+import { formatCount } from '@/lib/formatters';
 import { formatRelativeTime } from '@/lib/formatters';
 import type { NotificationItem, NotificationType } from '@/types/notification';
 
@@ -55,8 +61,15 @@ function TypeIcon({ type, isSystem }: { type: NotificationType; isSystem?: boole
 }
 
 export default function NotificationPage() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('全部');
+
+  const { data: suggestedUsers = [], refetch: refetchSuggested } = useQuery({
+    queryKey: ['recommend', 'users', 3],
+    queryFn: () => recommendService.users(3),
+    staleTime: 5 * 60 * 1000,
+  });
   const { data: unread } = useUnreadCount();
   const typeFilter = activeTab === '全部' ? undefined : (activeTab === '系统' ? 'SYSTEM' as NotificationType : activeTab as NotificationType);
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useNotifications(typeFilter);
@@ -286,6 +299,37 @@ export default function NotificationPage() {
             ))}
           </div>
         </div>
+
+        {/* Suggested users */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-5">
+            <h3 className="font-bold text-lg">你可能感兴趣的人</h3>
+            <button onClick={() => refetchSuggested()} className="text-xs text-gray-400 hover:text-gray-600">换一换 &gt;</button>
+          </div>
+          {suggestedUsers.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-4">暂无推荐</p>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {suggestedUsers.map((user) => (
+                <div key={user.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
+                    <img src={user.avatar || `https://i.pravatar.cc/150?u=sug-${user.id}`} className="w-10 h-10 rounded-full object-cover" />
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-[14px] text-gray-900">{user.nickname}</span>
+                        {user.verified && <CheckCircle2 size={14} className="fill-blue-500 text-white" />}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {user.roleTitle || `粉丝 ${formatCount(user.followerCount)}`}
+                      </div>
+                    </div>
+                  </div>
+                  <SuggestFollowButton targetUserId={user.id} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </aside>
     </PageShell>
   );
@@ -300,5 +344,36 @@ function Toggle({ checked: initial }: { checked: boolean }) {
     >
       <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${checked ? 'translate-x-4' : ''}`} />
     </div>
+  );
+}
+
+function SuggestFollowButton({ targetUserId }: { targetUserId: number }) {
+  const { data: status } = useQuery({
+    queryKey: ['relation', 'status', targetUserId],
+    queryFn: () => relationService.status(targetUserId),
+  });
+  const follow = useFollow(targetUserId);
+  const unfollow = useUnfollow(targetUserId);
+  const isFollowing = status?.following ?? false;
+
+  if (isFollowing) {
+    return (
+      <button
+        onClick={() => unfollow.mutate()}
+        disabled={unfollow.isPending}
+        className="border border-gray-300 text-gray-700 hover:bg-gray-50 px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+      >
+        {unfollow.isPending ? '...' : '已关注'}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={() => follow.mutate()}
+      disabled={follow.isPending}
+      className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+    >
+      {follow.isPending ? '...' : '关注'}
+    </button>
   );
 }

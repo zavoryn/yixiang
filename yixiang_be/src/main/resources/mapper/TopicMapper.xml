@@ -29,6 +29,13 @@
             last_used_at = CURRENT_TIMESTAMP(3)
     </insert>
 
+    <select id="searchByKeyword" resultMap="TopicResultMap">
+        SELECT * FROM topics
+        WHERE tag LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY post_count DESC
+        LIMIT #{limit}
+    </select>
+
     <update id="incrementViewBatch">
         <foreach collection="deltas" index="tag" item="delta" separator=";">
             UPDATE topics SET view_count = view_count + #{delta} WHERE tag = #{tag}

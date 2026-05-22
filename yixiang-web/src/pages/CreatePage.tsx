@@ -1,50 +1,162 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ChevronDown, Bold, Italic, Underline, List, TextQuote, Code,
-  Image as ImageIcon, PlaySquare, Globe, Lock, Save, ImagePlus,
+  Image as ImageIcon, PlaySquare, Globe, Lock, Save, ImagePlus, X,
   ShieldCheck, AlertCircle, Ban, MessageSquare, ThumbsUp,
-  Lightbulb, CheckCircle2, FileText, BarChart2, Users,
+  Lightbulb, CheckCircle2, FileEdit, Users,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
-import { knowpostService } from '@/services/knowpostService';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/common/EmptyState';
-
-const MOCK_DRAFTS = [
-  { id: 1, title: '半导体板块还能走多远?', time: '更新于 2小时前', icon: BarChart2, color: 'bg-blue-50 text-blue-600' },
-  { id: 2, title: '宁德时代Q3财报解读', time: '更新于 1天前', icon: FileText, color: 'bg-purple-50 text-purple-600' },
-  { id: 3, title: '我的短线交易策略分享', time: '更新于 3天前', icon: BarChart2, color: 'bg-orange-50 text-orange-600' },
-];
+import { draftService, uploadDraftMarkdownContent, type DraftItem } from '@/services/draftService';
+import { knowpostService, uploadToPresigned } from '@/services/knowpostService';
+import { circleService } from '@/services/circleService';
+import { formatRelativeTime } from '@/lib/formatters';
 
 export default function CreatePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const qc = useQueryClient();
   const { isAuthenticated } = useAuth();
+  const draftIdParam = searchParams.get('draftId');
+  const editingDraftId = draftIdParam && Number.isFinite(Number(draftIdParam)) ? Number(draftIdParam) : null;
   const [postType, setPostType] = useState<'public' | 'circle'>('public');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [selectedCircleId, setSelectedCircleId] = useState<number | null>(null);
+  const [showCirclePicker, setShowCirclePicker] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: joinedCircles = [] } = useQuery({
+    queryKey: ['circles', 'joined'],
+    queryFn: () => circleService.joined(),
+    enabled: isAuthenticated && postType === 'circle',
+  });
+
+  const { data: editingDraft } = useQuery({
+    queryKey: ['drafts', editingDraftId],
+    queryFn: () => draftService.get(editingDraftId!),
+    enabled: isAuthenticated && editingDraftId != null,
+  });
+
+  useEffect(() => {
+    if (!editingDraft) return;
+    setTitle(editingDraft.title ?? '');
+    setTags(editingDraft.tags ?? []);
+    setPostType(editingDraft.circleId ? 'circle' : 'public');
+    setVisibility(editingDraft.circleId ? 'private' : 'public');
+    setCoverImageUrl(editingDraft.coverImage ?? null);
+    setSelectedCircleId(editingDraft.circleId ?? null);
+
+    let cancelled = false;
+    if (editingDraft.contentUrl) {
+      fetch(editingDraft.contentUrl)
+        .then((resp) => (resp.ok ? resp.text() : ''))
+        .then((text) => {
+          if (!cancelled && text) setContent(text);
+        })
+        .catch(() => {
+          if (!cancelled) toast.error('草稿正文加载失败');
+        });
+    } else {
+      setContent('');
+    }
+    return () => { cancelled = true; };
+  }, [editingDraft]);
+
+  const saveCurrentDraft = async () => {
+    const normalizedTitle = title.trim();
+    const normalizedContent = content.trim();
+    if (!normalizedTitle && !normalizedContent) throw new Error('请输入标题或正文后再保存');
+
+    let draft: DraftItem;
+    if (editingDraftId) {
+      draft = await draftService.update(editingDraftId, {
+        title: normalizedTitle || null,
+        tags,
+        circleId: postType === 'circle' ? selectedCircleId : null,
+        coverImage: coverImageUrl,
+      });
+    } else {
+      draft = await draftService.create({
+        title: normalizedTitle || null,
+        tags,
+        circleId: postType === 'circle' ? selectedCircleId : null,
+        coverImage: coverImageUrl,
+      });
+    }
+
+    let contentUrl = draft.contentUrl;
+    if (normalizedContent) {
+      contentUrl = await uploadDraftMarkdownContent(draft.id, normalizedContent);
+      draft = await draftService.update(draft.id, { contentUrl });
+    }
+
+    qc.invalidateQueries({ queryKey: ['drafts'] });
+    if (!editingDraftId) navigate(`/create?draftId=${draft.id}`, { replace: true });
+    return draft;
+  };
+
+  const saveMut = useMutation({
+    mutationFn: saveCurrentDraft,
+    onSuccess: () => toast.success('草稿已保存'),
+    onError: (err) => toast.error(err instanceof Error ? err.message : '保存失败'),
+  });
 
   const publishMut = useMutation({
     mutationFn: async () => {
-      const draft = await knowpostService.createDraft();
-      await knowpostService.update(draft.id, { title, tags, visible: visibility });
-      await knowpostService.publish(draft.id);
-      return draft.id;
+      const normalizedTitle = title.trim();
+      const normalizedContent = content.trim();
+      if (normalizedTitle.length < 5) throw new Error('标题至少 5 个字');
+      if (normalizedContent.length < 20) throw new Error('正文至少 20 个字');
+      const draft = await saveCurrentDraft();
+      const resp = await draftService.publish(draft.id);
+      return resp.postId;
     },
-    onSuccess: (id) => {
+    onSuccess: (postId) => {
       toast.success('发布成功');
-      navigate(`/posts/${id}`);
+      qc.invalidateQueries({ queryKey: ['drafts'] });
+      navigate(`/posts/${postId}`);
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : '发布失败');
     },
   });
+
+  const handleCoverImageSelect = async (file: File) => {
+    setCoverUploading(true);
+    try {
+      let draftId = editingDraftId;
+      if (!draftId) {
+        const normalizedTitle = title.trim();
+        if (!normalizedTitle) { toast.info('请先输入标题再上传封面'); setCoverUploading(false); return; }
+        const draft = await draftService.create({ title: normalizedTitle, tags, coverImage: null });
+        draftId = draft.id;
+        navigate(`/create?draftId=${draftId}`, { replace: true });
+      }
+      const ext = file.name.includes('.') ? '.' + file.name.split('.').pop()! : '.jpg';
+      const presign = await knowpostService.presign({ scene: 'knowpost_image', postId: String(draftId), contentType: file.type, ext });
+      await uploadToPresigned(presign.putUrl, presign.headers, file);
+      const url = presign.putUrl.split('?')[0];
+      setCoverImageUrl(url);
+      await draftService.update(draftId, { coverImage: url });
+      qc.invalidateQueries({ queryKey: ['drafts'] });
+      toast.success('封面上传成功');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '封面上传失败');
+    } finally {
+      setCoverUploading(false);
+    }
+  };
 
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && tagInput.trim()) {
@@ -86,7 +198,7 @@ export default function CreatePage() {
           >
             <ArrowLeft size={20} /> <span className="font-medium text-[15px]">返回</span>
           </button>
-          <h2 className="text-[18px] font-bold text-gray-900">发布帖子</h2>
+          <h2 className="text-[18px] font-bold text-gray-900">{editingDraftId ? '编辑草稿' : '发布帖子'}</h2>
         </div>
 
         {/* Form */}
@@ -113,9 +225,35 @@ export default function CreatePage() {
                     <div className="font-bold text-[15px] text-gray-900">{opt.label}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
                   </div>
-                  {opt.key === 'circle' && (
-                    <div className="border border-gray-200 bg-white rounded-lg px-3 py-1.5 flex items-center gap-2 text-sm text-gray-400">
-                      选择圈子 <ChevronDown size={14} />
+                  {opt.key === 'circle' && postType === 'circle' && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowCirclePicker(!showCirclePicker); }}
+                        className="border border-gray-200 bg-white rounded-lg px-3 py-1.5 flex items-center gap-2 text-sm text-gray-600 hover:border-blue-400"
+                      >
+                        {selectedCircleId
+                          ? (joinedCircles.find((c) => c.id === selectedCircleId)?.name ?? '选择圈子')
+                          : '选择圈子'
+                        }
+                        <ChevronDown size={14} />
+                      </button>
+                      {showCirclePicker && (
+                        <div className="absolute top-10 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-100 min-w-[200px] py-2">
+                          {joinedCircles.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-gray-400">暂无加入的圈子</div>
+                          ) : joinedCircles.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => { setSelectedCircleId(c.id); setShowCirclePicker(false); }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${selectedCircleId === c.id ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
+                            >
+                              {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -232,25 +370,54 @@ export default function CreatePage() {
           {/* Cover image */}
           <section>
             <h3 className="font-bold text-[15px] text-gray-900 mb-4">添加封面</h3>
-            <div
-              className="border-2 border-dashed border-gray-200 hover:border-blue-400 bg-gray-50 hover:bg-[#f8faff] rounded-xl p-6 flex items-center gap-4 cursor-pointer transition-colors w-[320px]"
-              onClick={() => toast.info('图片上传功能即将上线')}
-            >
-              <div className="bg-white p-2.5 rounded-lg shadow-sm border border-gray-100 text-gray-400">
-                <ImagePlus size={24} />
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverImageSelect(f); e.target.value = ''; }}
+            />
+            {coverImageUrl ? (
+              <div className="relative w-[320px] h-[180px] rounded-xl overflow-hidden border border-gray-200 group">
+                <img src={coverImageUrl} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => { setCoverImageUrl(null); }}
+                  className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={14} />
+                </button>
+                <button
+                  onClick={() => coverInputRef.current?.click()}
+                  className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  更换
+                </button>
               </div>
-              <div>
-                <div className="font-medium text-gray-700 text-sm">上传图片</div>
-                <div className="text-xs text-gray-400 mt-1">建议尺寸 16:9，大小不超过 5MB</div>
+            ) : (
+              <div
+                className={`border-2 border-dashed border-gray-200 hover:border-blue-400 bg-gray-50 hover:bg-[#f8faff] rounded-xl p-6 flex items-center gap-4 cursor-pointer transition-colors w-[320px] ${coverUploading ? 'opacity-60 pointer-events-none' : ''}`}
+                onClick={() => coverInputRef.current?.click()}
+              >
+                <div className="bg-white p-2.5 rounded-lg shadow-sm border border-gray-100 text-gray-400">
+                  <ImagePlus size={24} />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-700 text-sm">{coverUploading ? '上传中...' : '上传图片'}</div>
+                  <div className="text-xs text-gray-400 mt-1">建议尺寸 16:9，大小不超过 5MB</div>
+                </div>
               </div>
-            </div>
+            )}
           </section>
         </div>
 
         {/* Bottom actions */}
         <div className="border-t border-gray-100 p-6 flex items-center justify-between mt-4">
-          <button className="flex items-center gap-2 text-blue-600 font-medium text-[15px] hover:text-blue-700 transition-colors">
-            <Save size={18} /> 保存草稿
+          <button
+            onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending || publishMut.isPending}
+            className="flex items-center gap-2 text-blue-600 font-medium text-[15px] hover:text-blue-700 transition-colors disabled:opacity-50"
+          >
+            <Save size={18} /> {saveMut.isPending ? '保存中...' : '保存草稿'}
           </button>
           <div className="flex gap-4">
             <button className="px-8 py-2.5 rounded-full border border-gray-300 text-gray-700 font-medium text-[15px] hover:bg-gray-50 transition-colors">
@@ -258,7 +425,7 @@ export default function CreatePage() {
             </button>
             <button
               onClick={() => publishMut.mutate()}
-              disabled={!title.trim() || publishMut.isPending}
+              disabled={title.trim().length < 5 || content.trim().length < 20 || publishMut.isPending || saveMut.isPending}
               className="px-8 py-2.5 rounded-full bg-blue-600 text-white font-medium text-[15px] hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200 disabled:opacity-50"
             >
               {publishMut.isPending ? '发布中...' : '发布'}
@@ -271,6 +438,13 @@ export default function CreatePage() {
 }
 
 function CreatePageSidebar() {
+  const navigate = useNavigate();
+  const { data: drafts = [] } = useQuery({
+    queryKey: ['drafts'],
+    queryFn: () => draftService.list(),
+  });
+  const recentDrafts = drafts.slice(0, 3);
+
   return (
     <>
       {/* Publish guidelines */}
@@ -319,28 +493,35 @@ function CreatePageSidebar() {
       {/* Drafts */}
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
         <div className="flex justify-between items-center mb-5">
-          <h3 className="font-bold text-[16px] text-gray-900">草稿箱 (3)</h3>
-          <a href="#" className="text-xs text-gray-400 hover:text-gray-600">全部草稿 &gt;</a>
+          <h3 className="font-bold text-[16px] text-gray-900">草稿箱 ({drafts.length})</h3>
+          <button onClick={() => navigate('/drafts')} className="text-xs text-gray-400 hover:text-gray-600">全部草稿 &gt;</button>
         </div>
-        <div className="flex flex-col gap-5">
-          {MOCK_DRAFTS.map((draft) => (
-            <div key={draft.id} className="flex gap-3 group">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${draft.color}`}>
-                <draft.icon size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-[14px] text-gray-900 truncate mb-1">{draft.title}</div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-400">{draft.time}</span>
-                  <button className="text-[12px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">继续编辑</button>
+        {recentDrafts.length === 0 ? (
+          <p className="text-[13px] text-gray-400">暂无草稿</p>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {recentDrafts.map((draft) => (
+              <div key={draft.id} className="flex gap-3 group">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                  <FileEdit size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-[14px] text-gray-900 truncate mb-1">{draft.title || '未命名草稿'}</div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-gray-400">更新于 {formatRelativeTime(draft.updatedAt)}</span>
+                    <button
+                      onClick={() => navigate(`/create?draftId=${draft.id}`)}
+                      className="text-[12px] text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      继续编辑
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
 }
-
-

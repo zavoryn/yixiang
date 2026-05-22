@@ -10,7 +10,6 @@ import org.apache.ibatis.annotations.Param;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
 @Mapper
 public interface KnowPostMapper {
@@ -33,6 +32,11 @@ public interface KnowPostMapper {
                                                                               @Param("limit") int limit,
                                                                               @Param("offset") int offset);
 
+    // 某用户公开已发布知文列表。
+    List<KnowPostFeedRow> listUserPublished(@Param("creatorId") long creatorId,
+                                            @Param("limit") int limit,
+                                            @Param("offset") int offset);
+
     // 设置置顶
     int updateTop(@Param("id") Long id, @Param("creatorId") Long creatorId, @Param("isTop") Boolean isTop);
 
@@ -54,10 +58,10 @@ public interface KnowPostMapper {
     List<KnowPostFeedRow> listFeedByIds(@Param("ids") Collection<Long> ids);
 
     // 圈子帖子列表（cursor-based）
-    List<Map<String, Object>> listByCircle(@Param("circleId") long circleId,
-                                           @Param("isFeatured") Integer isFeatured,
-                                           @Param("cursor") String cursor,
-                                           @Param("size") int size);
+    List<KnowPostFeedRow> listByCircle(@Param("circleId") long circleId,
+                                       @Param("isFeatured") Integer isFeatured,
+                                       @Param("cursor") String cursor,
+                                       @Param("size") int size);
 
     // 设置精华标记
     int setFeatured(@Param("postId") long postId,
@@ -67,4 +71,10 @@ public interface KnowPostMapper {
     List<KnowPost> listPublishedSince(@Param("since") Instant since, @Param("limit") int limit);
 
     List<KnowPost> listByTag(@Param("tag") String tag, @Param("offset") int offset, @Param("limit") int limit);
+
+    List<KnowPostFeedRow> listFollowingFeed(@Param("creatorIds") Collection<Long> creatorIds,
+                                            @Param("limit") int limit,
+                                            @Param("offset") int offset);
+
+    long countFollowingFeed(@Param("creatorIds") Collection<Long> creatorIds);
 }

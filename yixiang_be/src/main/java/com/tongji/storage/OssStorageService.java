@@ -80,6 +80,24 @@ public class OssStorageService {
         }
     }
 
+    public String uploadFile(String folderPrefix, String filename, MultipartFile file) {
+        ensureConfigured();
+        String ext = "";
+        if (filename != null && filename.contains(".")) {
+            ext = filename.substring(filename.lastIndexOf('.'));
+        }
+        String objectKey = folderPrefix + "/" + Instant.now().toEpochMilli() + ext;
+        OSS client = new OSSClientBuilder().build(props.getEndpoint(), props.getAccessKeyId(), props.getAccessKeySecret());
+        try {
+            client.putObject(new PutObjectRequest(props.getBucket(), objectKey, file.getInputStream()));
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "文件读取失败");
+        } finally {
+            client.shutdown();
+        }
+        return publicUrl(objectKey);
+    }
+
     private void ensureConfigured() {
         if (props.getEndpoint() == null || props.getAccessKeyId() == null || props.getAccessKeySecret() == null || props.getBucket() == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "对象存储未配置");

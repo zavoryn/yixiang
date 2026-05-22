@@ -31,7 +31,7 @@ public class TopicServiceImpl implements TopicService {
     private static final Duration VIEW_KEY_TTL = Duration.ofDays(7);
     private static final int MAX_HOT_LIMIT = 50;
     private static final int MAX_POST_SIZE = 50;
-    private static final List<String> METRICS = List.of("like", "comment", "favorite");
+    private static final List<String> METRICS = List.of("like", "comment", "fav");
 
     private final TopicMapper topicMapper;
     private final KnowPostMapper postMapper;
@@ -76,7 +76,7 @@ public class TopicServiceImpl implements TopicService {
 
         List<String> postIds = page.stream().map(p -> String.valueOf(p.getId())).toList();
         Map<String, Map<String, Long>> countsBatch = postIds.isEmpty() ? Map.of()
-                : counterService.getCountsBatch("post", postIds, METRICS);
+                : counterService.getCountsBatch("knowpost", postIds, METRICS);
 
         Set<Long> authorIds = page.stream().map(KnowPost::getCreatorId).collect(Collectors.toSet());
         Map<Long, UserBrief> authors = authorIds.isEmpty() ? Map.of() :
@@ -91,7 +91,7 @@ public class TopicServiceImpl implements TopicService {
                     authors.get(p.getCreatorId()),
                     c.getOrDefault("like", 0L),
                     c.getOrDefault("comment", 0L),
-                    c.getOrDefault("favorite", 0L),
+                    c.getOrDefault("fav", 0L),
                     p.getCreateTime()
             );
         }).toList();

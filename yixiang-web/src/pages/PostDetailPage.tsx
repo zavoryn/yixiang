@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   ArrowLeft, ThumbsUp, MessageCircle, Share2, MoreHorizontal,
   CheckCircle2, Star, Image as ImageIcon,
@@ -8,11 +10,16 @@ import {
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
 import { commentService } from '@/services/commentService';
+import { relationService } from '@/services/relationService';
+import { topicService } from '@/services/topicService';
+import { useFollow } from '@/features/relation/useFollow';
+import { useUnfollow } from '@/features/relation/useUnfollow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { formatCount, formatRelativeTime } from '@/lib/formatters';
 import { useAuth } from '@/context/AuthContext';
+import { buildSseUrl } from '@/lib/sse';
 import { toast } from 'sonner';
 import type { KnowpostDetailResponse } from '@/types/knowpost';
 import type { CommentDTO } from '@/types/comment';
@@ -21,13 +28,26 @@ export default function PostDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, tokens } = useAuth();
   const [commentText, setCommentText] = useState('');
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [isAsking, setIsAsking] = useState(false);
 
   const { data: post, isLoading, error } = useQuery<KnowpostDetailResponse>({
     queryKey: ['knowpost', 'detail', id],
-    queryFn: () => knowpostService.detail(id!, isAuthenticated ? undefined : undefined),
+    queryFn: () => knowpostService.detail(id!, tokens?.accessToken),
     enabled: !!id,
+  });
+
+  const { data: postContent } = useQuery({
+    queryKey: ['knowpost', 'content', post?.contentUrl],
+    queryFn: async () => {
+      const resp = await fetch(post!.contentUrl);
+      if (!resp.ok) throw new Error('正文加载失败');
+      return resp.text();
+    },
+    enabled: !!post?.contentUrl,
   });
 
   const { data: commentsData } = useQuery({
@@ -67,6 +87,28 @@ export default function PostDetailPage() {
   });
 
   const comments = commentsData?.items ?? [];
+
+  const askQuestion = () => {
+    const q = question.trim();
+    if (!q || !id) return;
+    setAnswer('');
+    setIsAsking(true);
+    const url = buildSseUrl(
+      `/api/v1/knowposts/${id}/qa/stream?question=${encodeURIComponent(q)}&topK=5&maxTokens=1024`,
+      tokens?.accessToken ?? null,
+    );
+    const es = new EventSource(url);
+    es.onmessage = (event) => setAnswer((prev) => prev + event.data);
+    es.addEventListener('done', () => {
+      setIsAsking(false);
+      es.close();
+    });
+    es.onerror = () => {
+      setIsAsking(false);
+      es.close();
+      toast.error('AI 问答连接失败');
+    };
+  };
 
   if (isLoading) {
     return (
@@ -121,11 +163,15 @@ export default function PostDetailPage() {
                   <CheckCircle2 size={16} className="text-blue-500 fill-blue-500" />
                 </div>
                 <div className="text-xs text-gray-400 mt-0.5">
-                  {post.publishTime ? formatRelativeTime(post.publishTime) : ''}
+                  {[
+                    (() => { try { const a = JSON.parse(post.authorTagJson ?? '[]'); return Array.isArray(a) && a[0] ? a[0] : null; } catch { return null; } })(),
+                    post.publishTime ? formatRelativeTime(post.publishTime) : null,
+                  ].filter(Boolean).join(' · ')}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {post.authorId && <AuthorFollowButton authorId={post.authorId} size="sm" />}
               <button className="text-gray-400 hover:text-gray-600"><MoreHorizontal size={20} /></button>
             </div>
           </div>
@@ -135,8 +181,10 @@ export default function PostDetailPage() {
 
           {/* Content */}
           <div className="flex justify-between items-start gap-4 mb-4">
-            <div className="text-gray-700 text-[15px] leading-relaxed">
-              <p>{post.description}</p>
+            <div className="prose prose-sm max-w-none text-gray-700 text-[15px] leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {postContent ?? post.description}
+              </ReactMarkdown>
             </div>
             {post.images?.[0] && (
               <img src={post.images[0]} className="w-40 h-24 object-cover rounded-lg border border-gray-100" />
@@ -188,6 +236,33 @@ export default function PostDetailPage() {
             </button>
           </div>
         </article>
+
+        <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+          <h3 className="font-bold text-gray-800 mb-4">AI 帖子问答</h3>
+          <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg p-2">
+            <input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') askQuestion();
+              }}
+              placeholder="输入你的问题..."
+              className="flex-1 bg-transparent border-none focus:outline-none text-sm px-2"
+            />
+            <button
+              onClick={askQuestion}
+              disabled={!question.trim() || isAsking}
+              className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isAsking ? '生成中...' : '提问'}
+            </button>
+          </div>
+          {answer && (
+            <div className="mt-4 rounded-lg bg-blue-50 border border-blue-100 p-4 text-sm text-gray-700 whitespace-pre-wrap">
+              {answer}
+            </div>
+          )}
+        </section>
 
         {/* Comment section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -251,67 +326,169 @@ function CommentRow({ comment }: { comment: CommentDTO }) {
   );
 }
 
+function AuthorFollowButton({ authorId, size = 'sm' }: { authorId: string; size?: 'sm' | 'md' }) {
+  const { isAuthenticated } = useAuth();
+  const uid = Number(authorId);
+  const { data: status } = useQuery({
+    queryKey: ['relation', 'status', uid],
+    queryFn: () => relationService.status(uid),
+    enabled: isAuthenticated && Number.isFinite(uid) && uid > 0,
+  });
+  const follow = useFollow(uid);
+  const unfollow = useUnfollow(uid);
+
+  if (!isAuthenticated || !Number.isFinite(uid) || uid <= 0) return null;
+
+  const isFollowing = status?.following ?? false;
+  const isPending = follow.isPending || unfollow.isPending;
+  const handleClick = () => isFollowing ? unfollow.mutate() : follow.mutate();
+
+  if (size === 'md') {
+    return (
+      <button
+        onClick={handleClick}
+        disabled={isPending}
+        className={`w-full py-2 rounded-full text-sm font-medium transition-colors disabled:opacity-50 ${
+          isFollowing
+            ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+            : 'bg-blue-600 text-white hover:bg-blue-700'
+        }`}
+      >
+        {isPending ? '...' : isFollowing ? '已关注' : '+ 关注'}
+      </button>
+    );
+  }
+  return (
+    <button
+      onClick={handleClick}
+      disabled={isPending}
+      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors disabled:opacity-50 ${
+        isFollowing
+          ? 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+          : 'border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100'
+      }`}
+    >
+      {isPending ? '...' : isFollowing ? '已关注' : '关注'}
+    </button>
+  );
+}
+
 function PostRightRail({ post }: { post: KnowpostDetailResponse }) {
+  const navigate = useNavigate();
+  const authorId = post.authorId ? Number(post.authorId) : null;
+
+  const { data: counters } = useQuery({
+    queryKey: ['relation', 'counters', authorId],
+    queryFn: () => relationService.counters(authorId!),
+    enabled: authorId != null && authorId > 0,
+  });
+
+  const { data: topics } = useQuery({
+    queryKey: ['topics', 'hot'],
+    queryFn: () => topicService.hot(5),
+  });
+
+  const firstTag = post.tags?.[0];
+  const { data: relatedData } = useQuery({
+    queryKey: ['topic', 'posts', firstTag],
+    queryFn: () => topicService.posts(firstTag!, undefined, 4),
+    enabled: !!firstTag,
+  });
+  const relatedPosts = (relatedData?.items ?? []).filter((p) => p.id !== post.id).slice(0, 3);
+
+  const authorRole = (() => {
+    try { const a = JSON.parse(post.authorTagJson ?? '[]'); return Array.isArray(a) && a[0] ? a[0] as string : ''; }
+    catch { return ''; }
+  })();
+
   return (
     <>
       {/* Author info */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 className="font-bold text-gray-800 mb-4 text-sm border-b border-gray-100 pb-2">作者信息</h3>
-        <div className="flex items-center gap-3 mb-4">
-          <img src={post.authorAvatar || `https://i.pravatar.cc/150?u=${post.authorId}`} className="w-14 h-14 rounded-full" />
+        <div
+          className="flex items-center gap-3 mb-4 cursor-pointer"
+          onClick={() => navigate(`/users/${post.authorId}`)}
+        >
+          <img
+            src={post.authorAvatar || `https://i.pravatar.cc/150?u=${post.authorId}`}
+            className="w-14 h-14 rounded-full object-cover"
+          />
           <div>
             <div className="flex items-center gap-1">
               <span className="font-bold text-base">{post.authorNickname}</span>
               <CheckCircle2 size={16} className="text-blue-500 fill-blue-500" />
             </div>
-            <div className="text-xs text-gray-500 mt-0.5">{post.authorTagJson ? (() => { try { return (JSON.parse(post.authorTagJson) as string[])[0]; } catch { return ''; } })() : ''}</div>
+            {authorRole && <div className="text-xs text-gray-500 mt-0.5">{authorRole}</div>}
           </div>
         </div>
         <div className="flex justify-between text-center mb-4">
-          <div><div className="font-bold text-gray-800 text-lg">128</div><div className="text-xs text-gray-500">关注</div></div>
+          <div>
+            <div className="font-bold text-gray-800 text-lg">{formatCount(counters?.followings ?? 0)}</div>
+            <div className="text-xs text-gray-500">关注</div>
+          </div>
           <div className="w-px bg-gray-200" />
-          <div><div className="font-bold text-gray-800 text-lg">12.3万</div><div className="text-xs text-gray-500">粉丝</div></div>
+          <div>
+            <div className="font-bold text-gray-800 text-lg">{formatCount(counters?.followers ?? 0)}</div>
+            <div className="text-xs text-gray-500">粉丝</div>
+          </div>
           <div className="w-px bg-gray-200" />
-          <div><div className="font-bold text-gray-800 text-lg">356</div><div className="text-xs text-gray-500">获赞</div></div>
+          <div>
+            <div className="font-bold text-gray-800 text-lg">{formatCount(counters?.likedPosts ?? 0)}</div>
+            <div className="text-xs text-gray-500">获赞</div>
+          </div>
         </div>
-        <p className="text-xs text-gray-500 mb-4 leading-relaxed">10年投资经验，专注价值投资，擅长财报分析和行业研究。</p>
-        <button className="w-full bg-blue-600 text-white py-2 rounded text-sm hover:bg-blue-700">已关注</button>
+        {post.authorId && <AuthorFollowButton authorId={post.authorId} size="md" />}
       </div>
 
       {/* Related posts */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 className="font-bold text-gray-800 mb-4 text-sm border-b border-gray-100 pb-2">相关推荐</h3>
-        <div className="flex flex-col gap-4">
-          {[
-            { title: '宁德时代深度研究：从周期到成长', author: 'A股老张', reads: '1.2w' },
-            { title: '新能源赛道还能布局吗？', author: 'TechAlpha', reads: '8456' },
-            { title: '一文看懂Q3财报核心指标', author: '林夕看盘', reads: '6231' },
-          ].map((item, i) => (
-            <div key={i} className="flex gap-3 cursor-pointer group">
-              <img src={`https://picsum.photos/seed/c${i}/100/100`} className="w-16 h-16 rounded object-cover bg-gray-100" />
-              <div className="flex-1 flex flex-col justify-between">
-                <h4 className="text-sm font-medium text-gray-800 group-hover:text-blue-600 line-clamp-2 leading-tight">{item.title}</h4>
-                <div className="text-xs text-gray-500 mt-1">{item.author}<br />{item.reads} 阅读</div>
+        {relatedPosts.length === 0 ? (
+          <p className="text-sm text-gray-400">暂无相关推荐</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {relatedPosts.map((item) => (
+              <div
+                key={item.id}
+                className="flex gap-3 cursor-pointer group"
+                onClick={() => navigate(`/posts/${item.id}`)}
+              >
+                {item.coverImage ? (
+                  <img src={item.coverImage} className="w-16 h-16 rounded object-cover bg-gray-100 shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded bg-gray-100 shrink-0 flex items-center justify-center">
+                    <ImageIcon size={20} className="text-gray-300" />
+                  </div>
+                )}
+                <div className="flex-1 flex flex-col justify-between">
+                  <h4 className="text-sm font-medium text-gray-800 group-hover:text-blue-600 line-clamp-2 leading-tight">
+                    {item.title}
+                  </h4>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {item.authorNickname} · {formatCount(item.likeCount ?? 0)} 赞
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Hot topics */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
         <h3 className="font-bold text-gray-800 mb-4 text-sm border-b border-gray-100 pb-2">热门话题</h3>
         <div className="flex flex-col gap-3">
-          {[
-            { title: '宁德时代Q3财报解读', count: '3.2w' },
-            { title: '新能源', count: '2.8w' },
-            { title: '财报分析', count: '1.8w' },
-          ].map((topic, i) => (
-            <div key={i} className="flex justify-between items-center cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1 rounded">
+          {(topics ?? []).slice(0, 5).map((topic) => (
+            <div
+              key={topic.tag}
+              className="flex justify-between items-center cursor-pointer hover:bg-gray-50 -mx-2 px-2 py-1 rounded"
+              onClick={() => navigate(`/search?q=${encodeURIComponent(topic.tag)}`)}
+            >
               <div className="flex items-center gap-2 text-sm text-gray-700">
-                <span className="text-blue-500 font-bold">#</span> {topic.title}
+                <span className="text-blue-500 font-bold">#</span> {topic.tag}
               </div>
-              <span className="text-xs text-gray-400">{topic.count} 讨论</span>
+              <span className="text-xs text-gray-400">{formatCount(topic.viewCount)} 讨论</span>
             </div>
           ))}
         </div>

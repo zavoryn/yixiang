@@ -2,13 +2,19 @@ package com.tongji.profile.service.impl;
 
 import com.tongji.profile.api.dto.ProfilePatchRequest;
 import com.tongji.profile.api.dto.ProfileResponse;
+import com.tongji.profile.api.dto.VisitorItem;
 import com.tongji.common.exception.BusinessException;
 import com.tongji.common.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.tongji.user.domain.User;
 import com.tongji.user.mapper.UserMapper;
@@ -31,6 +37,7 @@ import com.tongji.profile.service.ProfileService;
 public class ProfileServiceImpl implements ProfileService {
 
     private final UserMapper userMapper;
+    private final StringRedisTemplate redis;
 
     /**
      * 按用户 ID 查询用户实体。
@@ -168,6 +175,37 @@ public class ProfileServiceImpl implements ProfileService {
         // 更新后回读，保证返回最新头像地址
         User updated = userMapper.findById(userId);
         return toResponse(updated);
+    }
+
+    @Override
+    public void recordVisit(long targetId, long visitorId) {
+        String key = "profile:visitors:" + targetId;
+        double score = System.currentTimeMillis();
+        redis.opsForZSet().add(key, String.valueOf(visitorId), score);
+        // Keep only 50 most recent unique visitors
+        redis.opsForZSet().removeRange(key, 0, -51);
+        redis.expire(key, Duration.ofDays(30));
+    }
+
+    @Override
+    public List<VisitorItem> recentVisitors(long targetId, int limit) {
+        String key = "profile:visitors:" + targetId;
+        Set<String> visitorIds = redis.opsForZSet().reverseRange(key, 0, limit - 1);
+        if (visitorIds == null || visitorIds.isEmpty()) return List.of();
+
+        List<Long> ids = visitorIds.stream().map(Long::parseLong).toList();
+        List<User> users = userMapper.listByIds(ids);
+
+        List<VisitorItem> result = new ArrayList<>(users.size());
+        for (User u : users) {
+            result.add(new VisitorItem(
+                    u.getId(),
+                    u.getNickname(),
+                    u.getAvatar(),
+                    Boolean.TRUE.equals(u.getVerified())
+            ));
+        }
+        return result;
     }
 
     /**

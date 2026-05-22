@@ -1,60 +1,72 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Volume2, ChevronRight, ThumbsUp, MessageCircle, MessageSquare,
-  Eye, Download, HelpCircle, Check, Bell, Hash, LayoutGrid,
+  Eye, Download, HelpCircle, Check, Bell, Hash, LayoutGrid, CheckCircle2,
+  HelpCircle as QAIcon, Star, Settings, FileText, Trash2, Upload, File,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { circleService } from '@/services/circleService';
+import { topicService } from '@/services/topicService';
+import { relationService } from '@/services/relationService';
+import { useFollow } from '@/features/relation/useFollow';
+import { useUnfollow } from '@/features/relation/useUnfollow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatCount } from '@/lib/formatters';
+import { formatCount, formatRelativeTime } from '@/lib/formatters';
 import { toast } from 'sonner';
-import type { CircleDetail } from '@/types/circle';
+import { useAuth } from '@/context/AuthContext';
+import type { CircleDetail, CircleFile } from '@/types/circle';
+import type { FeedItem } from '@/types/knowpost';
 
-const TABS = ['首页', '帖子', '问答', '成员', '文件', '精华', '设置'];
-
-const MOCK_PINNED = [
-  {
-    id: 1, title: '本周市场展望：短线机会与风险提示',
-    image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=400',
-    author: { name: 'A股老张', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=256&q=80', level: 4 },
-    time: '3天前', excerpt: '结合当前市场情绪与技术面，详细分析本周可能出现的交易机会...', likes: 256, comments: 48,
-  },
-  {
-    id: 2, title: '我的交易系统：从选股到止盈止损',
-    image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?auto=format&fit=crop&q=80&w=400',
-    author: { name: 'A股老张', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=256&q=80', level: 4 },
-    time: '1周前', excerpt: '完整分享我的短线交易系统，帮助大家建立自己的交易框架。', likes: 189, comments: 36,
-  },
-];
-
-const MOCK_ACTIVITIES = [
-  { user: 'A股老张', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=256&q=80', action: '发布了新帖子', target: '本周市场展望：短线机会与风险提示', time: '3分钟前' },
-  { user: '林夕看盘', avatar: 'https://i.pravatar.cc/150?img=47', action: '回答了问题', target: '如何判断个股的支撑位和压力位？', time: '15分钟前' },
-  { user: 'TechAlpha量化研究社', avatar: 'https://i.pravatar.cc/150?img=33', action: '发布了新帖', target: '量化模型在A股的实战应用', time: '1小时前' },
-  { user: '趋势为王', avatar: 'https://i.pravatar.cc/150?img=11', action: '发表了观点', target: '当前市场更适合做趋势还是震荡？', time: '2小时前' },
-];
-
-const MOCK_TOPICS = [
-  { title: '短线策略', count: 128 },
-  { title: '市场分析', count: 96 },
-  { title: '个股研究', count: 84 },
-  { title: '交易系统', count: 72 },
-];
+type TabId = '首页' | '帖子' | '问答' | '精华' | '成员' | '文件' | '设置';
 
 export default function CircleDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const circleId = id ? Number(id) : undefined;
-  const [activeTab, setActiveTab] = useState('首页');
+  const [activeTab, setActiveTab] = useState<TabId>('首页');
+  const { user: currentUser } = useAuth();
 
   const { data: circle, isLoading, error, refetch } = useQuery<CircleDetail>({
     queryKey: ['circle', circleId],
     queryFn: () => circleService.detail(circleId!),
     enabled: circleId != null,
+  });
+
+  const isOwnerOrAdmin = circle?.myRole === 'OWNER' || circle?.myRole === 'ADMIN';
+  const TABS: TabId[] = ['首页', '帖子', '问答', '精华', '成员', '文件',
+    ...(isOwnerOrAdmin ? ['设置' as TabId] : [])];
+
+  const { data: featuredPostsResp, isLoading: featuredLoading } = useQuery({
+    queryKey: ['circle', circleId, 'posts', 'featured'],
+    queryFn: () => circleService.posts(circleId!, true, undefined, 20),
+    enabled: circleId != null && (activeTab === '精华' || activeTab === '首页'),
+  });
+
+  const { data: allPostsResp, isLoading: postsLoading } = useQuery({
+    queryKey: ['circle', circleId, 'posts', 'all'],
+    queryFn: () => circleService.posts(circleId!, false, undefined, 20),
+    enabled: circleId != null && (activeTab === '帖子' || activeTab === '问答'),
+  });
+
+  const { data: membersResp, isLoading: membersLoading } = useQuery({
+    queryKey: ['circle', circleId, 'members'],
+    queryFn: () => circleService.members(circleId!, 1, 20),
+    enabled: circleId != null && activeTab === '成员',
+  });
+
+  const { data: filesResp, isLoading: filesLoading } = useQuery({
+    queryKey: ['circle', circleId, 'files'],
+    queryFn: () => circleService.listFiles(circleId!),
+    enabled: circleId != null && activeTab === '文件',
+  });
+
+  const { data: hotTopics } = useQuery({
+    queryKey: ['topics', 'hot'],
+    queryFn: () => topicService.hot(4),
   });
 
   if (isLoading) {
@@ -87,7 +99,7 @@ export default function CircleDetailPage() {
   return (
     <PageShell
       contentClassName="max-w-5xl"
-      rightRail={<CircleRightPanel circle={circle} />}
+      rightRail={<CircleRightPanel circle={circle} hotTopics={hotTopics} />}
     >
       <div className="px-6 py-4">
         {/* Back button */}
@@ -117,6 +129,7 @@ export default function CircleDetailPage() {
                 <img
                   src={circle.avatarUrl || `https://i.pravatar.cc/150?u=c${circle.id}`}
                   className="w-full h-full object-cover"
+                  alt={circle.name}
                 />
               </div>
 
@@ -142,7 +155,6 @@ export default function CircleDetailPage() {
               <div className="flex gap-10 text-white">
                 <StatBox value={formatCount(circle.memberCount)} label="成员数" />
                 <StatBox value={formatCount(circle.postCount)} label="帖子数" />
-                <StatBox value="128" label="今日活跃" />
               </div>
 
               <div className="flex gap-3">
@@ -185,11 +197,92 @@ export default function CircleDetailPage() {
           ))}
         </div>
 
-        {/* Content grid: 2/3 + 1/3 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left: 2/3 — announcements + pinned posts */}
+        {/* 帖子 tab */}
+        {activeTab === '帖子' && (
+          <div className="space-y-4">
+            {postsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+              </div>
+            ) : (allPostsResp?.items ?? []).length === 0 ? (
+              <EmptyState icon={MessageSquare} title="暂无帖子" description="圈内还没有帖子，来发第一篇吧" />
+            ) : (
+              (allPostsResp?.items ?? []).map((post) => (
+                <CirclePostCard key={post.id} post={post} onClick={() => navigate(`/posts/${post.id}`)} />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 问答 tab */}
+        {activeTab === '问答' && (
+          <QATab
+            posts={allPostsResp?.items ?? []}
+            isLoading={postsLoading}
+            onAsk={() => navigate(`/create?circleId=${circle.id}`)}
+            onNavigate={(postId) => navigate(`/posts/${postId}`)}
+          />
+        )}
+
+        {/* 精华 tab */}
+        {activeTab === '精华' && (
+          <FeaturedTab
+            posts={featuredPostsResp?.items ?? []}
+            isLoading={featuredLoading}
+            isAdmin={isOwnerOrAdmin}
+            circleId={circle.id}
+            onNavigate={(postId) => navigate(`/posts/${postId}`)}
+          />
+        )}
+
+        {/* 成员 tab */}
+        {activeTab === '成员' && (
+          <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm">
+            {membersLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
+              </div>
+            ) : (membersResp?.items ?? []).length === 0 ? (
+              <EmptyState icon={LayoutGrid} title="暂无成员" description="" />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {membersResp!.items.map((member) => (
+                  <div key={member.userId} className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/users/${member.userId}`)}>
+                    <img src={member.avatar || `https://i.pravatar.cc/150?u=m${member.userId}`} className="w-10 h-10 rounded-full object-cover" alt={member.nickname} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <span className="font-medium text-gray-900 text-sm truncate">{member.nickname}</span>
+                        {member.verified && <CheckCircle2 size={14} className="text-blue-500 fill-blue-500 shrink-0" />}
+                      </div>
+                      <div className="text-xs text-gray-400">{member.role === 'OWNER' ? '圈主' : member.role === 'ADMIN' ? '管理员' : '成员'}</div>
+                    </div>
+                    {member.joinedAt && <span className="text-xs text-gray-400 shrink-0">{formatRelativeTime(member.joinedAt)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 文件 tab */}
+        {activeTab === '文件' && (
+          <FilesTab
+            files={filesResp ?? []}
+            isLoading={filesLoading}
+            circleId={circle.id}
+            currentUserId={currentUser?.id != null ? Number(currentUser.id) : undefined}
+            isMember={circle.joined}
+          />
+        )}
+
+        {/* 设置 tab */}
+        {activeTab === '设置' && isOwnerOrAdmin && (
+          <SettingsTab circle={circle} onUpdated={() => refetch()} />
+        )}
+
+        {/* 首页 */}
+        {activeTab === '首页' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            {/* Announcement */}
             <div className="bg-blue-50/50 rounded-xl p-5 border border-blue-100">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 text-blue-600 font-medium">
@@ -205,87 +298,372 @@ export default function CircleDetailPage() {
               </div>
             </div>
 
-            {/* Pinned posts */}
             <div>
               <h2 className="text-lg font-bold text-gray-800 mb-4 px-1">置顶帖子</h2>
-              <div className="space-y-4">
-                {MOCK_PINNED.map((post) => (
-                  <div key={post.id} className="bg-white rounded-xl p-4 flex gap-4 hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm cursor-pointer group">
-                    <div className="w-40 h-28 shrink-0 rounded-lg overflow-hidden relative">
-                      <img src={post.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">
-                        置顶
-                      </div>
-                    </div>
-
-                    <div className="flex-1 flex flex-col justify-between py-0.5">
-                      <div>
-                        <h3 className="text-base font-bold text-gray-900 mb-2 line-clamp-1 group-hover:text-blue-600 transition-colors">
-                          {post.title}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-2 text-xs">
-                          <img src={post.author.avatar} className="w-5 h-5 rounded-full object-cover" />
-                          <span className="font-medium text-gray-700">{post.author.name}</span>
-                          <span className="bg-blue-100 text-blue-600 text-[10px] px-1 py-0.5 rounded">Lv.{post.author.level}</span>
-                          <span className="text-gray-400">· {post.time}</span>
-                        </div>
-                        <p className="text-sm text-gray-500 line-clamp-1">{post.excerpt}</p>
-                      </div>
-                      <div className="flex items-center gap-4 text-gray-400 text-sm mt-2">
-                        <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
-                          <ThumbsUp size={14} /> {post.likes}
-                        </span>
-                        <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
-                          <MessageCircle size={14} /> {post.comments}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 text-center">
-                <button className="text-gray-500 text-sm hover:text-blue-600 flex items-center justify-center gap-1 mx-auto transition-colors">
-                  查看全部置顶帖子 <ChevronRight size={14} />
-                </button>
-              </div>
+              {(featuredPostsResp?.items ?? []).length > 0 ? (
+                <div className="space-y-4">
+                  {featuredPostsResp!.items.map((post) => (
+                    <CirclePostCard key={post.id} post={post} featured onClick={() => navigate(`/posts/${post.id}`)} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400 text-sm">暂无置顶帖子</div>
+              )}
             </div>
           </div>
 
-          {/* Right: 1/3 — activity feed */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
               <h2 className="text-base font-bold text-gray-800 mb-4">最新动态</h2>
-              <div className="space-y-6 relative before:absolute before:inset-0 before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 before:to-transparent before:left-5">
-                {MOCK_ACTIVITIES.map((activity, idx) => (
-                  <div key={idx} className="relative flex items-start gap-3">
-                    <img
-                      src={activity.avatar}
-                      className="w-8 h-8 rounded-full border-2 border-white bg-white relative z-10 object-cover shrink-0 mt-1 shadow-sm"
-                    />
-                    <div className="flex-1 pb-4">
-                      <div className="text-sm text-gray-800 mb-1">
-                        <span className="font-bold mr-1">{activity.user}</span>
-                        <span className="text-gray-600">{activity.action}</span>
-                      </div>
-                      <div className="text-[13px] text-gray-500 mb-1 line-clamp-1">{activity.target}</div>
-                      <div className="text-xs text-gray-400">{activity.time}</div>
+              {(allPostsResp?.items ?? []).length > 0 ? (
+                <div className="space-y-3">
+                  {(allPostsResp?.items ?? []).slice(0, 5).map((post) => (
+                    <div key={post.id} className="text-sm text-gray-600 hover:text-blue-600 cursor-pointer truncate transition-colors"
+                      onClick={() => navigate(`/posts/${post.id}`)}>
+                      {post.title}
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 pt-4 border-t border-gray-50 text-center">
-                <button className="text-gray-500 text-sm hover:text-blue-600 flex items-center justify-center gap-1 mx-auto transition-colors">
-                  查看全部动态 <ChevronRight size={14} />
-                </button>
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400 text-center py-4">暂无最新动态</div>
+              )}
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </PageShell>
   );
 }
 
+/* ─────────────── Q&A Tab ─────────────── */
+function QATab({
+  posts, isLoading, onAsk, onNavigate,
+}: {
+  posts: FeedItem[];
+  isLoading: boolean;
+  onAsk: () => void;
+  onNavigate: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-gray-800">圈内问答</h2>
+        <Button onClick={onAsk} size="sm">
+          <QAIcon size={15} className="mr-1.5" />
+          提问
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
+      ) : posts.length === 0 ? (
+        <EmptyState icon={HelpCircle} title="还没有问答" description="成为第一个提问的人吧" action={<Button onClick={onAsk}>去提问</Button>} />
+      ) : (
+        posts.map((post) => (
+          <div
+            key={post.id}
+            className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm hover:bg-gray-50 cursor-pointer transition-colors"
+            onClick={() => onNavigate(post.id)}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
+                <HelpCircle size={16} className="text-blue-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">{post.title}</h3>
+                {post.description && (
+                  <p className="text-sm text-gray-500 line-clamp-1 mb-2">{post.description}</p>
+                )}
+                <div className="flex items-center gap-4 text-xs text-gray-400">
+                  <span>{post.authorNickname}</span>
+                  <span className="flex items-center gap-1">
+                    <MessageCircle size={12} /> {formatCount(post.commentCount ?? 0)} 回答
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <ThumbsUp size={12} /> {formatCount(post.likeCount ?? 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+/* ─────────────── Featured Tab ─────────────── */
+function FeaturedTab({
+  posts, isLoading, isAdmin, circleId, onNavigate,
+}: {
+  posts: FeedItem[];
+  isLoading: boolean;
+  isAdmin: boolean;
+  circleId: number;
+  onNavigate: (id: string) => void;
+}) {
+  const queryClient = useQueryClient();
+  const unfeatureMutation = useMutation({
+    mutationFn: ({ postId }: { postId: string }) =>
+      circleService.featurePost(circleId, postId, false),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['circle', circleId, 'posts', 'featured'] });
+      toast.success('已取消精华');
+    },
+    onError: () => toast.error('操作失败'),
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-gray-800">精华帖子</h2>
+        <span className="text-sm text-gray-400">{posts.length} 篇精华</span>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
+      ) : posts.length === 0 ? (
+        <EmptyState icon={Star} title="暂无精华内容" description={isAdmin ? '可在帖子列表中将优质内容设为精华' : '圈主还未设置精华帖子'} />
+      ) : (
+        posts.map((post) => (
+          <div key={post.id} className="relative group">
+            <CirclePostCard post={post} featured onClick={() => onNavigate(post.id)} />
+            {isAdmin && (
+              <button
+                onClick={(e) => { e.stopPropagation(); unfeatureMutation.mutate({ postId: post.id }); }}
+                className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 bg-red-50 text-red-500 hover:bg-red-100 border border-red-200 text-xs px-2 py-1 rounded transition-all"
+              >
+                取消精华
+              </button>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+/* ─────────────── Files Tab ─────────────── */
+function FilesTab({
+  files, isLoading, circleId, currentUserId, isMember,
+}: {
+  files: CircleFile[];
+  isLoading: boolean;
+  circleId: number;
+  currentUserId?: number;
+  isMember: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => circleService.uploadFile(circleId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['circle', circleId, 'files'] });
+      toast.success('文件上传成功');
+    },
+    onError: () => toast.error('上传失败，请重试'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (fileId: number) => circleService.deleteFile(circleId, fileId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['circle', circleId, 'files'] });
+      toast.success('文件已删除');
+    },
+    onError: () => toast.error('删除失败'),
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) uploadMutation.mutate(f);
+    e.target.value = '';
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getFileIcon = (mime: string | null) => {
+    if (!mime) return <File size={20} className="text-gray-400" />;
+    if (mime.startsWith('image/')) return <File size={20} className="text-blue-400" />;
+    if (mime.includes('pdf')) return <FileText size={20} className="text-red-400" />;
+    if (mime.includes('word') || mime.includes('document')) return <FileText size={20} className="text-blue-500" />;
+    if (mime.includes('sheet') || mime.includes('excel')) return <FileText size={20} className="text-green-500" />;
+    return <File size={20} className="text-gray-400" />;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-gray-800">圈内文件</h2>
+        {isMember && (
+          <>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} />
+            <Button
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadMutation.isPending}
+            >
+              <Upload size={15} className="mr-1.5" />
+              {uploadMutation.isPending ? '上传中…' : '上传文件'}
+            </Button>
+          </>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 rounded-xl" />)}</div>
+      ) : files.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="暂无共享文件"
+          description={isMember ? '上传文件与圈友共享' : '加入圈子后可上传文件'}
+          action={isMember ? <Button size="sm" onClick={() => fileInputRef.current?.click()}>上传第一个文件</Button> : undefined}
+        />
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+          {files.map((file) => (
+            <div key={file.id} className="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors group">
+              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                {getFileIcon(file.mimeType)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-gray-900 text-sm truncate">{file.filename}</div>
+                <div className="text-xs text-gray-400 mt-0.5">
+                  {file.uploaderNickname} · {formatSize(file.fileSize)} · {formatRelativeTime(file.createdAt)}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <a
+                  href={file.ossUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  download={file.filename}
+                  className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
+                  title="下载"
+                >
+                  <Download size={16} />
+                </a>
+                {currentUserId != null && (file.uploaderId === currentUserId || isMember) && (
+                  <button
+                    onClick={() => deleteMutation.mutate(file.id)}
+                    disabled={deleteMutation.isPending}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 transition-colors"
+                    title="删除"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────── Settings Tab ─────────────── */
+function SettingsTab({ circle, onUpdated }: { circle: CircleDetail; onUpdated: () => void }) {
+  const [name, setName] = useState(circle.name);
+  const [description, setDescription] = useState(circle.description ?? '');
+  const [category, setCategory] = useState(circle.category ?? '');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>(circle.visibility);
+
+  const CATEGORIES = ['投资理财', '基金债券', '股票分析', '量化交易', '财税规划', '职场成长', '其他'];
+
+  const updateMutation = useMutation({
+    mutationFn: () => circleService.update(circle.id, {
+      name: name.trim(),
+      description: description.trim(),
+      category: category || undefined,
+      visibility,
+    }),
+    onSuccess: () => {
+      toast.success('圈子信息已更新');
+      onUpdated();
+    },
+    onError: () => toast.error('更新失败，请重试'),
+  });
+
+  return (
+    <div className="max-w-2xl">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-5">
+        <div className="flex items-center gap-2 mb-2">
+          <Settings size={18} className="text-gray-500" />
+          <h2 className="text-lg font-bold text-gray-800">圈子设置</h2>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">圈子名称</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={50}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">圈子简介</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+            maxLength={500}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">圈子分类</label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+          >
+            <option value="">请选择分类</option>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">加入方式</label>
+          <div className="flex gap-4">
+            {(['PUBLIC', 'PRIVATE'] as const).map((v) => (
+              <label key={v} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="visibility"
+                  value={v}
+                  checked={visibility === v}
+                  onChange={() => setVisibility(v)}
+                  className="accent-blue-600"
+                />
+                <span className="text-sm text-gray-700">{v === 'PUBLIC' ? '公开（任何人可加入）' : '私密（需审核加入）'}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <Button
+            onClick={() => updateMutation.mutate()}
+            disabled={updateMutation.isPending || !name.trim()}
+          >
+            {updateMutation.isPending ? '保存中…' : '保存设置'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────── Shared sub-components ─────────────── */
 function StatBox({ value, label }: { value: string; label: string }) {
   return (
     <div>
@@ -295,40 +673,41 @@ function StatBox({ value, label }: { value: string; label: string }) {
   );
 }
 
-function CircleRightPanel({ circle }: { circle: CircleDetail }) {
+function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopics?: { tag: string; postCount: number; viewCount: number }[] }) {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const owner = circle.topMembers.find((m) => m.role === 'OWNER');
+
   return (
     <>
-      {/* Owner info */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <h3 className="font-bold text-gray-800 mb-4">圈主介绍</h3>
-        <div className="flex items-start gap-3 mb-3">
-          <img
-            src={circle.avatarUrl || `https://i.pravatar.cc/150?u=c${circle.id}`}
-            className="w-12 h-12 rounded-full border border-gray-100 object-cover"
-          />
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-bold text-gray-900">{circle.name}</span>
-              <span className="bg-blue-100 text-blue-600 text-[10px] px-1.5 py-0.5 rounded font-bold">Lv.4</span>
-              <span className="bg-orange-100 text-orange-600 text-[10px] px-1.5 py-0.5 rounded font-bold">圈主</span>
-            </div>
-            <div className="text-xs text-gray-500 flex items-center gap-3">
-              <span>粉丝 <span className="font-semibold text-gray-700">1.2w</span></span>
-              <span>帖子 <span className="font-semibold text-gray-700">356</span></span>
+      {owner && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <h3 className="font-bold text-gray-800 mb-4">圈主介绍</h3>
+          <div
+            className="flex items-start gap-3 mb-4 cursor-pointer"
+            onClick={() => navigate(`/users/${owner.userId}`)}
+          >
+            <img
+              src={owner.avatar || `https://i.pravatar.cc/150?u=owner-${owner.userId}`}
+              className="w-12 h-12 rounded-full border border-gray-100 object-cover"
+              alt={owner.nickname}
+            />
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-bold text-gray-900">{owner.nickname}</span>
+                <span className="bg-orange-100 text-orange-600 text-[10px] px-1.5 py-0.5 rounded font-bold">圈主</span>
+              </div>
+              <p className="text-xs text-gray-500 line-clamp-2">
+                {circle.description || '暂无简介'}
+              </p>
             </div>
           </div>
+          {isAuthenticated && <OwnerFollowButton ownerId={owner.userId} />}
         </div>
-        <p className="text-sm text-gray-600 mb-4 leading-relaxed bg-gray-50 p-3 rounded-lg">
-          10年实战经验，擅长短线交易与市场情绪分析，追求稳定复利。
-        </p>
-        <button className="w-full border border-blue-600 text-blue-600 hover:bg-blue-50 py-1.5 rounded-lg text-sm font-medium transition-colors">
-          关注圈主
-        </button>
-      </div>
+      )}
 
       <div className="h-px bg-gray-100 w-full" />
 
-      {/* Privileges */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <h3 className="font-bold text-gray-800 mb-4">圈子特权</h3>
         <div className="space-y-4 text-sm text-gray-700">
@@ -349,43 +728,106 @@ function CircleRightPanel({ circle }: { circle: CircleDetail }) {
         </div>
       </div>
 
-      {/* Hot topics */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
         <h3 className="font-bold text-gray-800 mb-4">热门话题</h3>
-        <div className="space-y-3">
-          {MOCK_TOPICS.map((topic) => (
-            <div key={topic.title} className="flex items-center justify-between group cursor-pointer">
-              <div className="flex items-center gap-2 text-sm text-gray-700 group-hover:text-blue-600 transition-colors">
-                <Hash size={14} className="text-blue-400" />
-                <span>{topic.title}</span>
+        {hotTopics && hotTopics.length > 0 ? (
+          <div className="space-y-3">
+            {hotTopics.map((topic) => (
+              <div key={topic.tag} className="flex items-center justify-between group cursor-pointer">
+                <div className="flex items-center gap-2 text-sm text-gray-700 group-hover:text-blue-600 transition-colors">
+                  <Hash size={14} className="text-blue-400" />
+                  <span>{topic.tag}</span>
+                </div>
+                <span className="text-xs text-gray-400">{topic.postCount} 讨论</span>
               </div>
-              <span className="text-xs text-gray-400">{topic.count} 讨论</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-4 text-gray-400 text-sm">暂无热门话题</div>
+        )}
       </div>
 
-      {/* Members */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-gray-800">
-            圈内成员 <span className="font-normal text-gray-500 text-sm">({formatCount(circle.memberCount)})</span>
-          </h3>
-          <button className="text-gray-400 hover:text-gray-600 flex items-center text-sm">
-            查看全部 <ChevronRight size={14} />
-          </button>
+      {circle.topMembers.length > 0 && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-gray-800">
+              圈内成员 <span className="font-normal text-gray-500 text-sm">({formatCount(circle.memberCount)})</span>
+            </h3>
+            <button className="text-gray-400 hover:text-gray-600 flex items-center text-sm">
+              查看全部 <ChevronRight size={14} />
+            </button>
+          </div>
+          <div className="flex -space-x-2 overflow-hidden py-1">
+            {circle.topMembers.slice(0, 6).map((member) => (
+              <img
+                key={member.userId}
+                title={member.nickname}
+                className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                src={member.avatar || `https://i.pravatar.cc/150?u=m-${member.userId}`}
+                onClick={() => navigate(`/users/${member.userId}`)}
+                alt={member.nickname}
+              />
+            ))}
+          </div>
         </div>
-        <div className="flex -space-x-2 overflow-hidden py-1">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <img
-              key={i}
-              className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-              src={`https://i.pravatar.cc/150?img=${i + 10}`}
-              alt=""
-            />
-          ))}
+      )}
+    </>
+  );
+}
+
+function OwnerFollowButton({ ownerId }: { ownerId: number }) {
+  const { data: status } = useQuery({
+    queryKey: ['relation', 'status', ownerId],
+    queryFn: () => relationService.status(ownerId),
+  });
+  const follow = useFollow(ownerId);
+  const unfollow = useUnfollow(ownerId);
+  const isFollowing = status?.following ?? false;
+  const isPending = follow.isPending || unfollow.isPending;
+
+  return (
+    <button
+      onClick={() => isFollowing ? unfollow.mutate() : follow.mutate()}
+      disabled={isPending}
+      className={`w-full py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+        isFollowing
+          ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          : 'border border-blue-600 text-blue-600 hover:bg-blue-50'
+      }`}
+    >
+      {isPending ? '...' : isFollowing ? '已关注' : '关注圈主'}
+    </button>
+  );
+}
+
+function CirclePostCard({ post, onClick, featured = false }: { post: FeedItem; onClick: () => void; featured?: boolean }) {
+  return (
+    <div className="bg-white rounded-xl p-4 flex gap-4 hover:bg-gray-50 transition-colors border border-gray-100 shadow-sm cursor-pointer group" onClick={onClick}>
+      <div className="w-36 h-24 shrink-0 rounded-lg overflow-hidden relative bg-gray-100">
+        <img
+          src={post.coverImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=400'}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          alt={post.title}
+        />
+        {featured && (
+          <div className="absolute top-0 left-0 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">置顶</div>
+        )}
+      </div>
+      <div className="flex-1 flex flex-col justify-between py-0.5">
+        <div>
+          <h3 className="text-base font-bold text-gray-900 mb-1.5 line-clamp-1 group-hover:text-blue-600 transition-colors">{post.title}</h3>
+          <p className="text-sm text-gray-500 line-clamp-1">{post.description}</p>
+        </div>
+        <div className="flex items-center gap-4 text-gray-400 text-sm mt-2">
+          <span className="text-xs text-gray-500">{post.authorNickname}</span>
+          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+            <ThumbsUp size={13} /> {formatCount(post.likeCount ?? 0)}
+          </span>
+          <span className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+            <MessageCircle size={13} /> {formatCount(post.commentCount ?? 0)}
+          </span>
         </div>
       </div>
-    </>
+    </div>
   );
 }

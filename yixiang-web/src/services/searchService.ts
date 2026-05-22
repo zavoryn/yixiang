@@ -1,5 +1,11 @@
 import { apiFetch } from "@/lib/apiClient";
-import type { SearchResponse, SuggestResponse } from "@/types/search";
+import type {
+  SearchResponse,
+  SuggestResponse,
+  UserSearchResponse,
+  TopicSearchItem,
+  CircleSearchResponse,
+} from "@/types/search";
 
 const SEARCH_PREFIX = "/api/v1/search";
 
@@ -19,5 +25,20 @@ export const searchService = {
     usp.set("prefix", prefix);
     if (size) usp.set("size", String(size));
     return apiFetch<SuggestResponse>(`${SEARCH_PREFIX}/suggest?${usp.toString()}`);
-  }
+  },
+
+  searchUsers: (q: string, page = 1, size = 20) => {
+    const usp = new URLSearchParams({ q, page: String(page), size: String(size) });
+    return apiFetch<UserSearchResponse>(`${SEARCH_PREFIX}/users?${usp.toString()}`);
+  },
+
+  searchTopics: (q: string, size = 30) => {
+    const usp = new URLSearchParams({ q, size: String(size) });
+    return apiFetch<TopicSearchItem[]>(`${SEARCH_PREFIX}/topics?${usp.toString()}`);
+  },
+
+  searchCircles: (q: string, page = 1, size = 20) => {
+    const usp = new URLSearchParams({ q, page: String(page), size: String(size) });
+    return apiFetch<CircleSearchResponse>(`${SEARCH_PREFIX}/circles?${usp.toString()}`);
+  },
 };

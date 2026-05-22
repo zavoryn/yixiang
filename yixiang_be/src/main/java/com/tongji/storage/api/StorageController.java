@@ -3,6 +3,8 @@ package com.tongji.storage.api;
 import com.tongji.common.exception.BusinessException;
 import com.tongji.common.exception.ErrorCode;
 import com.tongji.auth.token.JwtService;
+import com.tongji.draft.mapper.DraftMapper;
+import com.tongji.draft.model.Draft;
 import com.tongji.knowpost.mapper.KnowPostMapper;
 import com.tongji.knowpost.model.KnowPost;
 import com.tongji.storage.OssStorageService;
@@ -19,6 +21,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @RestController
@@ -30,6 +33,7 @@ public class StorageController {
     private final OssStorageService ossStorageService;
     private final JwtService jwtService;
     private final KnowPostMapper knowPostMapper;
+    private final DraftMapper draftMapper;
 
     /**
      * 获取用于直传的 PUT 预签名 URL。
@@ -46,9 +50,12 @@ public class StorageController {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "postId 非法");
         }
 
-        // 权限校验：postId 必须属于当前用户
+        // 权限校验：postId 可以是 know_posts 草稿 ID，也可以是 drafts 草稿 ID。
         KnowPost post = knowPostMapper.findById(postId);
-        if (post == null || post.getCreatorId() == null || post.getCreatorId() != userId) {
+        boolean ownsKnowPost = post != null && Objects.equals(post.getCreatorId(), userId);
+        Draft draft = ownsKnowPost ? null : draftMapper.findById(postId);
+        boolean ownsDraft = draft != null && Objects.equals(draft.getUserId(), userId);
+        if (!ownsKnowPost && !ownsDraft) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "草稿不存在或无权限");
         }
 

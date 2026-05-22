@@ -16,8 +16,24 @@
         SELECT post_id FROM user_favorites
         WHERE user_id = #{userId}
         <if test="lastId != null">AND id &lt; #{lastId}</if>
+        <if test="folderId != null">AND folder_id = #{folderId}</if>
         ORDER BY id DESC
         LIMIT #{size}
+    </select>
+
+
+    <update id="assignFolder">
+        UPDATE user_favorites SET folder_id = #{folderId}
+        WHERE user_id = #{userId} AND post_id = #{postId}
+    </update>
+
+    <update id="unassignFolder">
+        UPDATE user_favorites SET folder_id = NULL
+        WHERE user_id = #{userId} AND folder_id = #{folderId}
+    </update>
+
+    <select id="countByUser" resultType="int">
+        SELECT COUNT(*) FROM user_favorites WHERE user_id = #{userId}
     </select>
 
 </mapper>

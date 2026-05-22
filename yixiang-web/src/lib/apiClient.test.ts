@@ -42,7 +42,12 @@ describe('apiFetch', () => {
       .mockResolvedValueOnce(new Response('', { status: 401 }))
       .mockResolvedValueOnce(
         new Response(
-          JSON.stringify({ accessToken: 'access-2', refreshToken: 'refresh-2', accessExpiresAt: 999 }),
+          JSON.stringify({
+            accessToken: 'access-2',
+            accessTokenExpiresAt: '2026-05-21T04:00:00Z',
+            refreshToken: 'refresh-2',
+            refreshTokenExpiresAt: '2026-05-28T04:00:00Z',
+          }),
           { status: 200 },
         ),
       )
@@ -53,6 +58,32 @@ describe('apiFetch', () => {
     const result = await apiFetch<{ ok: boolean }>('/test');
     expect(result).toEqual({ ok: true });
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('refreshes access token through the versioned auth endpoint', async () => {
+    const refreshResponse = {
+      accessToken: 'new-access',
+      accessTokenExpiresAt: '2026-05-21T04:00:00Z',
+      refreshToken: 'new-refresh',
+      refreshTokenExpiresAt: '2026-05-28T04:00:00Z',
+    };
+    const onTokensUpdated = vi.fn();
+    setTokenStore({
+      getAccessToken: () => 'expired-access',
+      getRefreshToken: () => 'old-refresh',
+      onTokensUpdated,
+      onAuthFailed: vi.fn(),
+    });
+    fetchMock
+      .mockResolvedValueOnce(new Response('', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(refreshResponse), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+
+    await apiFetch<{ ok: boolean }>('/api/v1/profile/1');
+
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/profile/1');
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/auth/token/refresh');
+    expect(onTokensUpdated).toHaveBeenCalledWith(refreshResponse);
   });
 
   it('calls onAuthFailed if refresh also returns 401', async () => {
@@ -69,5 +100,37 @@ describe('apiFetch', () => {
 
     await expect(apiFetch('/test')).rejects.toBeInstanceOf(ApiError);
     expect(onAuthFailed).toHaveBeenCalled();
+  });
+});
+
+describe('apiFetch with absolute backend base URL', () => {
+  it('refreshes through /api/v1 when VITE_API_BASE_URL is backend origin', async () => {
+    vi.resetModules();
+    vi.doMock('./env', () => ({
+      env: { apiBaseUrl: 'http://localhost:8080', isDev: true },
+    }));
+    const imported = await import('./apiClient');
+    const absoluteFetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('', { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        accessToken: 'new-access',
+        accessTokenExpiresAt: '2026-05-21T04:00:00Z',
+        refreshToken: 'new-refresh',
+        refreshTokenExpiresAt: '2026-05-28T04:00:00Z',
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    globalThis.fetch = absoluteFetchMock as unknown as typeof fetch;
+    imported.setTokenStore({
+      getAccessToken: () => 'expired-access',
+      getRefreshToken: () => 'refresh-token',
+      onTokensUpdated: vi.fn(),
+      onAuthFailed: vi.fn(),
+    });
+
+    await imported.apiFetch<{ ok: boolean }>('/api/v1/profile/1');
+
+    expect(absoluteFetchMock.mock.calls[0][0]).toBe('http://localhost:8080/api/v1/profile/1');
+    expect(absoluteFetchMock.mock.calls[1][0]).toBe('http://localhost:8080/api/v1/auth/token/refresh');
+    vi.doUnmock('./env');
   });
 });

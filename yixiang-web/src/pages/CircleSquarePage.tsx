@@ -1,47 +1,85 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle2, Package, ShieldCheck, MessageSquare, Ban, AlertCircle, Info,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { circleService } from '@/services/circleService';
+import { recommendService } from '@/services/recommendService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { formatCount } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 const CATEGORIES = ['全部圈子', '投资策略', '短线交易', '价值投资', '行业研究', '技术分析', '宏观经济'];
-
-const MOCK_MY_CIRCLES = [
-  { id: 1, name: 'A股老张实战圈', members: 1280, avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026024d' },
-  { id: 2, name: '林夕看盘·价值投资圈', members: 860, avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
-  { id: 3, name: 'TechAlpha量化研究社', members: 520, avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
-];
-
-const MOCK_HOT_CIRCLES = [
-  { id: 1, name: '短线猎手训练营', members: 680, avatar: 'https://images.unsplash.com/photo-1518186285589-2f7649de83e0?w=150&h=150&fit=crop' },
-  { id: 2, name: '财报分析研究所', members: 1150, avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026707d' },
-  { id: 3, name: '行业景气度跟踪圈', members: 740, avatar: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=150&h=150&fit=crop' },
-];
+const CREATE_CATEGORIES = ['投资策略', '短线交易', '价值投资', '行业研究', '技术分析', '宏观经济'];
 
 export default function CircleSquarePage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'圈子广场' | '我的圈子'>('圈子广场');
   const [activeCategory, setActiveCategory] = useState('全部圈子');
   const [page, setPage] = useState(1);
-
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['circles', activeCategory, page],
-    queryFn: () => circleService.list({
-      category: activeCategory === '全部圈子' ? undefined : activeCategory,
-      page,
-      size: 10,
-    }),
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    description: '',
+    category: '',
+    visibility: 'PUBLIC' as 'PUBLIC' | 'PRIVATE',
   });
 
-  const circles = data?.items ?? [];
+  const createMutation = useMutation({
+    mutationFn: () => circleService.create({
+      name: createForm.name.trim(),
+      description: createForm.description.trim() || undefined,
+      category: createForm.category || undefined,
+      visibility: createForm.visibility,
+    }),
+    onSuccess: (data) => {
+      toast.success('圈子创建成功！');
+      setShowCreateDialog(false);
+      setCreateForm({ name: '', description: '', category: '', visibility: 'PUBLIC' });
+      queryClient.invalidateQueries({ queryKey: ['circles'] });
+      navigate(`/circles/${data.id}`);
+    },
+    onError: () => toast.error('创建失败，请稍后重试'),
+  });
+
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['circles', activeTab, activeCategory, page],
+    queryFn: async () => {
+      if (activeTab === '我的圈子') {
+        const joined = await circleService.joined();
+        return { items: joined, total: joined.length, page: 1, size: joined.length };
+      }
+      return circleService.list({
+        category: activeCategory === '全部圈子' ? undefined : activeCategory,
+        page,
+        size: 10,
+      });
+    },
+    enabled: activeTab !== '我的圈子' || isAuthenticated,
+  });
+
+  const { data: joinedCircles = [] } = useQuery({
+    queryKey: ['circles', 'joined'],
+    queryFn: () => circleService.joined(),
+    enabled: isAuthenticated,
+  });
+
+  const { data: recommendedCircles = [], refetch: refetchRecommendedCircles } = useQuery({
+    queryKey: ['recommend', 'circles', 3],
+    queryFn: () => recommendService.circles(3),
+  });
+
+  const circles = activeTab === '我的圈子' && !isAuthenticated ? [] : data?.items ?? [];
 
   return (
     <PageShell>
@@ -99,7 +137,10 @@ export default function CircleSquarePage() {
                 </div>
               </div>
               <button
-                onClick={() => toast.info('创建圈子功能即将上线')}
+                onClick={() => {
+                  if (!isAuthenticated) { toast.error('请先登录'); return; }
+                  setShowCreateDialog(true);
+                }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap shadow-sm shadow-blue-200"
               >
                 创建圈子
@@ -134,8 +175,8 @@ export default function CircleSquarePage() {
             <div className="py-16">
               <EmptyState
                 icon={Package}
-                title="暂无圈子"
-                description="还没有符合条件的圈子"
+                title={activeTab === '我的圈子' ? '暂无已加入圈子' : '暂无圈子'}
+                description={activeTab === '我的圈子' ? '加入圈子后会显示在这里' : '还没有符合条件的圈子'}
               />
             </div>
           ) : (
@@ -193,27 +234,34 @@ export default function CircleSquarePage() {
               ))}
 
               {/* Pagination */}
-              {circles.length > 0 && (
-                <div className="flex justify-center gap-2 py-8">
-                  {[1, 2, 3].map((p) => (
+              {activeTab === '圈子广场' && (() => {
+                const hasMore = data ? data.page * data.size < data.total : false;
+                return (page > 1 || hasMore) && (
+                  <div className="flex justify-center gap-2 py-8">
+                    {page > 1 && (
+                      <button
+                        onClick={() => setPage((p) => p - 1)}
+                        className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 text-sm transition-colors"
+                      >
+                        上一页
+                      </button>
+                    )}
                     <button
-                      key={p}
-                      onClick={() => setPage(p)}
-                      className={`w-8 h-8 flex items-center justify-center text-sm rounded border transition-colors ${
-                        page === p ? 'bg-blue-600 text-white border-blue-600' : 'border-transparent text-gray-600 hover:border-gray-200'
-                      }`}
+                      className="w-8 h-8 flex items-center justify-center text-sm rounded border bg-blue-600 text-white border-blue-600"
                     >
-                      {p}
+                      {page}
                     </button>
-                  ))}
-                  <button
-                    onClick={() => setPage((p) => p + 1)}
-                    className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 text-sm"
-                  >
-                    下一页
-                  </button>
-                </div>
-              )}
+                    {hasMore && (
+                      <button
+                        onClick={() => setPage((p) => p + 1)}
+                        className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 text-sm transition-colors"
+                      >
+                        下一页
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -224,52 +272,65 @@ export default function CircleSquarePage() {
         {/* My circles */}
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-5">
-            <h3 className="font-bold text-[16px] text-gray-900">我的圈子 (3)</h3>
-            <a href="#" className="text-xs text-gray-400 hover:text-gray-600">查看全部 &gt;</a>
+            <h3 className="font-bold text-[16px] text-gray-900">我的圈子 ({joinedCircles.length})</h3>
+            <button onClick={() => setActiveTab('我的圈子')} className="text-xs text-gray-400 hover:text-gray-600">查看全部 &gt;</button>
           </div>
-          <div className="flex flex-col gap-6">
-            {MOCK_MY_CIRCLES.map((circle) => (
-              <div key={circle.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img src={circle.avatar} className="w-12 h-12 rounded-xl object-cover" />
-                  <div>
-                    <div className="font-bold text-[15px] text-gray-900 mb-0.5">{circle.name}</div>
-                    <div className="text-[13px] text-gray-500">{formatCount(circle.members)} 成员</div>
+          {!isAuthenticated ? (
+            <p className="text-sm text-gray-400">登录后查看已加入圈子</p>
+          ) : joinedCircles.length === 0 ? (
+            <p className="text-sm text-gray-400">暂无已加入圈子</p>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {joinedCircles.slice(0, 3).map((circle) => (
+                <div key={circle.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src={circle.avatarUrl || `https://i.pravatar.cc/150?u=circle-${circle.id}`} className="w-12 h-12 rounded-xl object-cover" />
+                    <div>
+                      <div className="font-bold text-[15px] text-gray-900 mb-0.5">{circle.name}</div>
+                      <div className="text-[13px] text-gray-500">{formatCount(circle.memberCount)} 成员</div>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => navigate(`/circles/${circle.id}`)}
+                    className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors"
+                  >
+                    进入圈子
+                  </button>
                 </div>
-                <button
-                  onClick={() => navigate(`/circles/${circle.id}`)}
-                  className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors"
-                >
-                  进入圈子
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Hot circles */}
         <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-bold text-[16px] text-gray-900">热门圈子推荐</h3>
-            <a href="#" className="text-xs text-gray-400 hover:text-gray-600">换一换 &gt;</a>
+            <button onClick={() => refetchRecommendedCircles()} className="text-xs text-gray-400 hover:text-gray-600">换一换 &gt;</button>
           </div>
-          <div className="flex flex-col gap-6">
-            {MOCK_HOT_CIRCLES.map((circle) => (
-              <div key={circle.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img src={circle.avatar} className="w-12 h-12 rounded-xl object-cover" />
-                  <div>
-                    <div className="font-bold text-[15px] text-gray-900 mb-0.5">{circle.name}</div>
-                    <div className="text-[13px] text-gray-500">{formatCount(circle.members)} 成员</div>
+          {recommendedCircles.length === 0 ? (
+            <p className="text-sm text-gray-400">暂无推荐圈子</p>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {recommendedCircles.map((circle) => (
+                <div key={circle.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <img src={circle.avatarUrl || `https://i.pravatar.cc/150?u=recommend-circle-${circle.id}`} className="w-12 h-12 rounded-xl object-cover" />
+                    <div>
+                      <div className="font-bold text-[15px] text-gray-900 mb-0.5">{circle.name}</div>
+                      <div className="text-[13px] text-gray-500">{formatCount(circle.memberCount)} 成员</div>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => circle.joined ? navigate(`/circles/${circle.id}`) : circleService.join(circle.id).then(() => refetchRecommendedCircles()).catch(() => toast.error('加入失败'))}
+                    className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors"
+                  >
+                    {circle.joined ? '进入圈子' : '申请加入'}
+                  </button>
                 </div>
-                <button className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 px-4 py-1.5 rounded-full text-[13px] font-medium transition-colors">
-                  申请加入
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Rules */}
@@ -294,6 +355,84 @@ export default function CircleSquarePage() {
           </ul>
         </div>
       </aside>
+
+      {/* Create Circle Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>创建圈子</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                圈子名称 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                maxLength={50}
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="请输入圈子名称（最多50字）"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">圈子简介</label>
+              <textarea
+                maxLength={500}
+                rows={3}
+                value={createForm.description}
+                onChange={(e) => setCreateForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="简单介绍一下你的圈子（最多500字）"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 resize-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">所属分类</label>
+              <select
+                value={createForm.category}
+                onChange={(e) => setCreateForm((f) => ({ ...f, category: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 bg-white"
+              >
+                <option value="">请选择分类（可选）</option>
+                {CREATE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">圈子类型</label>
+              <div className="flex gap-4">
+                {(['PUBLIC', 'PRIVATE'] as const).map((v) => (
+                  <label key={v} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value={v}
+                      checked={createForm.visibility === v}
+                      onChange={() => setCreateForm((f) => ({ ...f, visibility: v }))}
+                      className="accent-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">
+                      {v === 'PUBLIC' ? '公开圈子（所有人可见）' : '私密圈子（需审核加入）'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>取消</Button>
+              <Button
+                onClick={() => createMutation.mutate()}
+                disabled={!createForm.name.trim() || createMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {createMutation.isPending ? '创建中...' : '创建圈子'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageShell>
   );
 }

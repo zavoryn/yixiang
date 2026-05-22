@@ -1,12 +1,14 @@
 package com.tongji.activity.mapper;
 
 import com.tongji.activity.model.Activity;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
+@Mapper
 public interface ActivityMapper {
     void insert(Activity activity);
     List<Activity> listByUsers(@Param("userIds") Collection<Long> userIds,

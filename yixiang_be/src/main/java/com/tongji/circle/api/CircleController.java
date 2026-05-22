@@ -3,6 +3,8 @@ package com.tongji.circle.api;
 import com.tongji.auth.token.JwtService;
 import com.tongji.circle.api.dto.*;
 import com.tongji.circle.service.CircleService;
+import com.tongji.knowpost.api.dto.FeedPageResponse;
+import com.tongji.knowpost.service.KnowPostFeedService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,10 +20,12 @@ public class CircleController {
 
     private final CircleService circleService;
     private final JwtService jwtService;
+    private final KnowPostFeedService feedService;
 
-    public CircleController(CircleService circleService, JwtService jwtService) {
+    public CircleController(CircleService circleService, JwtService jwtService, KnowPostFeedService feedService) {
         this.circleService = circleService;
         this.jwtService = jwtService;
+        this.feedService = feedService;
     }
 
     @GetMapping
@@ -63,5 +67,16 @@ public class CircleController {
     public List<CircleSummaryResponse> joined(@AuthenticationPrincipal Jwt jwt) {
         long uid = jwtService.extractUserId(jwt);
         return circleService.joined(uid);
+    }
+
+    @GetMapping("/{id}/posts")
+    public FeedPageResponse circlePosts(
+            @PathVariable long id,
+            @RequestParam(required = false) Boolean featured,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long uid = jwt != null ? jwtService.extractUserId(jwt) : null;
+        return feedService.getCirclePosts(id, featured, cursor, Math.min(size, 50), uid);
     }
 }

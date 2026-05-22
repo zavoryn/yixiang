@@ -30,4 +30,12 @@ export const profileService = {
       `/api/v1/knowposts/liked?${params.toString()}`
     );
   },
+
+  recordVisit: (targetId: number) =>
+    apiFetch<void>(`${PROFILE_PREFIX}/${targetId}/visit`, { method: 'POST' }),
+
+  recentVisitors: (targetId: number, limit = 10) =>
+    apiFetch<Array<{ id: number; nickname: string; avatar: string | null; verified: boolean }>>(
+      `${PROFILE_PREFIX}/${targetId}/recent-visitors?limit=${limit}`
+    ),
 };

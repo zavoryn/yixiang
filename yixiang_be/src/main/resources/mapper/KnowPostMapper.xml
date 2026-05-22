@@ -93,6 +93,42 @@
         WHERE id = #{id} AND creator_id = #{creatorId}
     </update>
 
+    <!-- 关注流：查询所关注用户的公开已发布帖子 -->
+    <select id="listFollowingFeed" resultType="com.tongji.knowpost.model.KnowPostFeedRow">
+        SELECT
+            p.id,
+            p.title,
+            p.description,
+            p.tags,
+            p.img_urls AS imgUrls,
+            u.avatar AS authorAvatar,
+            u.nickname AS authorNickname,
+            u.id AS authorId,
+            u.tags_json AS authorTagJson,
+            p.publish_time AS publishTime,
+            p.is_top AS isTop
+        FROM know_posts p
+        JOIN users u ON p.creator_id = u.id
+        WHERE p.status = 'published'
+          AND p.visible = 'public'
+          AND p.creator_id IN
+            <foreach item="id" collection="creatorIds" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        ORDER BY p.publish_time DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countFollowingFeed" resultType="long">
+        SELECT COUNT(*) FROM know_posts p
+        WHERE p.status = 'published'
+          AND p.visible = 'public'
+          AND p.creator_id IN
+            <foreach item="id" collection="creatorIds" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+    </select>
+
     <!-- 首页 Feed 列表查询（公开可见 + 已发布），置顶优先，其次按发布时间倒序 -->
     <select id="listFeedPublic" resultType="com.tongji.knowpost.model.KnowPostFeedRow">
         SELECT
@@ -130,6 +166,28 @@
         JOIN users u ON p.creator_id = u.id
         WHERE p.creator_id = #{creatorId} AND p.status = 'published'
         ORDER BY p.is_top DESC, p.publish_time DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 某用户公开知文列表（只返回 public + published，供他人主页访问） -->
+    <select id="listUserPublished" resultType="com.tongji.knowpost.model.KnowPostFeedRow">
+        SELECT
+            p.id,
+            p.title,
+            p.description,
+            p.tags,
+            p.img_urls AS imgUrls,
+            u.avatar AS authorAvatar,
+            u.nickname AS authorNickname,
+            u.tags_json AS authorTagJson,
+            p.publish_time AS publishTime,
+            p.is_top AS isTop
+        FROM know_posts p
+        JOIN users u ON p.creator_id = u.id
+        WHERE p.creator_id = #{creatorId}
+          AND p.status = 'published'
+          AND p.visible = 'public'
+        ORDER BY p.publish_time DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
@@ -187,14 +245,24 @@
         <foreach collection="ids" item="id" open="(" separator="," close=")">#{id}</foreach>
     </select>
 
-    <select id="listByCircle" resultType="map">
-        SELECT id, title, description, img_urls AS imgUrls, creator_id AS creatorId,
-               create_time AS createTime, tags, is_featured AS isFeatured, circle_id AS circleId
-        FROM know_posts
-        WHERE circle_id = #{circleId} AND status = 'published'
-        <if test="isFeatured != null">AND is_featured = #{isFeatured}</if>
-        <if test="cursor != null">AND id &lt; #{cursor}</if>
-        ORDER BY create_time DESC, id DESC
+    <select id="listByCircle" resultType="com.tongji.knowpost.model.KnowPostFeedRow">
+        SELECT
+            p.id,
+            p.title,
+            p.description,
+            p.tags,
+            p.img_urls AS imgUrls,
+            u.avatar AS authorAvatar,
+            u.nickname AS authorNickname,
+            u.tags_json AS authorTagJson,
+            p.publish_time AS publishTime,
+            p.is_top AS isTop
+        FROM know_posts p
+        JOIN users u ON p.creator_id = u.id
+        WHERE p.circle_id = #{circleId} AND p.status = 'published'
+        <if test="isFeatured != null">AND p.is_featured = #{isFeatured}</if>
+        <if test="cursor != null">AND p.id &lt; #{cursor}</if>
+        ORDER BY p.is_featured DESC, p.publish_time DESC
         LIMIT #{size}
     </select>
 
