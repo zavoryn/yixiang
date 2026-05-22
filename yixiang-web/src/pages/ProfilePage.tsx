@@ -172,12 +172,19 @@ export default function ProfilePage() {
 
             {/* Action buttons */}
             <div className="flex justify-end pt-4 gap-3">
-              {isOwnProfile && (
+              {isOwnProfile ? (
                 <button
                   onClick={() => navigate('/settings')}
                   className="px-4 py-1.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-full hover:bg-gray-50 transition-colors"
                 >
                   编辑资料
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate(`/messages?targetUserId=${profileUserId}`)}
+                  className="px-4 py-1.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-full hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                >
+                  <MessageCircle size={15} /> 发私信
                 </button>
               )}
               <button className="p-1.5 border border-gray-200 text-gray-600 rounded-full hover:bg-gray-50 transition-colors flex items-center justify-center w-8 h-8">
