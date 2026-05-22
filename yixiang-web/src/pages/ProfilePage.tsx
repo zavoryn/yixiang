@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Share, ThumbsUp, MessageCircle, MoreHorizontal, ChevronDown,
-  MapPin, Briefcase, Calendar, BarChart2, Shield,
-  FileText
+  MapPin, Briefcase, Calendar, BarChart2, Shield, Award, Star,
+  TrendingUp, Users, Heart, Bookmark, FileText,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAuth } from '@/context/AuthContext';
@@ -44,12 +44,25 @@ export default function ProfilePage() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('全部');
   const [page, setPage] = useState(1);
 
-  // Fetch relation counters
   const { data: counters } = useQuery<RelationCountersResponse>({
     queryKey: ['relation', 'counters', profileUserId],
     queryFn: () => relationService.counters(profileUserId!),
     enabled: profileUserId != null,
   });
+
+  const { data: recentVisitors = [] } = useQuery({
+    queryKey: ['profile', 'visitors', profileUserId],
+    queryFn: () => profileService.recentVisitors(profileUserId!, 10),
+    enabled: profileUserId != null,
+    staleTime: 60_000,
+  });
+
+  // Record visit when viewing someone else's profile
+  useEffect(() => {
+    if (profileUserId != null && !isOwnProfile) {
+      profileService.recordVisit(profileUserId).catch(() => {});
+    }
+  }, [profileUserId, isOwnProfile]);
 
   // Fetch posts (my posts tab)
   const { data: postsData, isLoading: postsLoading } = useQuery({
@@ -311,9 +324,13 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Right sidebar */}
       <aside className="w-[320px] shrink-0 sticky top-[88px] flex flex-col gap-4 max-lg:hidden">
-        <RightSidebar profile={profile} isOwnProfile={isOwnProfile} />
+        <RightSidebar
+          profile={profile}
+          isOwnProfile={isOwnProfile}
+          counters={counters}
+          recentVisitors={recentVisitors}
+        />
       </aside>
     </PageShell>
   );
@@ -392,15 +409,30 @@ function PageButton({ children, active, onClick }: { children: React.ReactNode; 
   );
 }
 
-function RightSidebar({ profile, isOwnProfile }: { profile: ProfileResponse; isOwnProfile: boolean }) {
+type VisitorEntry = { id: number; nickname: string; avatar: string | null; verified: boolean };
+
+function RightSidebar({
+  profile,
+  isOwnProfile,
+  counters,
+  recentVisitors,
+}: {
+  profile: ProfileResponse;
+  isOwnProfile: boolean;
+  counters?: RelationCountersResponse;
+  recentVisitors: VisitorEntry[];
+}) {
   const navigate = useNavigate();
+
+  // Achievement badges computed from counters
+  const badges = computeBadges(counters);
+
   return (
     <>
       {/* Personal info */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
         <h3 className="text-[16px] font-bold text-gray-900 mb-3">个人简介</h3>
         <p className="text-sm text-gray-600 mb-5 leading-relaxed">{profile.bio || '这个人很懒，什么都没写~'}</p>
-
         <div className="space-y-4 mb-5">
           {profile.roleTitle && (
             <InfoRow icon={<Briefcase size={16} />} label="职业" value={profile.roleTitle} />
@@ -415,7 +447,6 @@ function RightSidebar({ profile, isOwnProfile }: { profile: ProfileResponse; isO
             <p className="text-sm text-gray-400">暂无更多信息</p>
           )}
         </div>
-
         {isOwnProfile && (
           <button
             onClick={() => navigate('/settings')}
@@ -426,36 +457,111 @@ function RightSidebar({ profile, isOwnProfile }: { profile: ProfileResponse; isO
         )}
       </div>
 
-      {/* Recent visitors — no backend API yet */}
+      {/* Recent visitors */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <h3 className="text-[16px] font-bold text-gray-900 mb-3">最近访客</h3>
-        <EmptyState
-          icon={Shield}
-          title="访客记录暂未接入"
-          description="需要后端访客追踪接口支持"
-        />
+        <h3 className="text-[16px] font-bold text-gray-900 mb-4">最近访客</h3>
+        {recentVisitors.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-3">暂无访客记录</p>
+        ) : (
+          <div className="grid grid-cols-5 gap-2">
+            {recentVisitors.slice(0, 10).map((v) => (
+              <div
+                key={v.id}
+                className="flex flex-col items-center gap-1 cursor-pointer group"
+                onClick={() => navigate(`/profile/${v.id}`)}
+              >
+                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 relative">
+                  {v.avatar ? (
+                    <img src={v.avatar} alt={v.nickname} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-bold">
+                      {v.nickname.charAt(0)}
+                    </div>
+                  )}
+                  {v.verified && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <Shield size={8} className="text-white" />
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] text-gray-500 truncate w-full text-center group-hover:text-blue-600 transition-colors">
+                  {v.nickname}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Stats — no backend API yet */}
+      {/* Stats */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <h3 className="text-[16px] font-bold text-gray-900 mb-3">数据统计</h3>
-        <EmptyState
-          icon={BarChart2}
-          title="数据统计暂未接入"
-          description="需要后端数据分析接口支持"
-        />
+        <h3 className="text-[16px] font-bold text-gray-900 mb-4">数据统计</h3>
+        <div className="space-y-3">
+          <StatsRow icon={<FileText size={15} className="text-blue-500" />} label="发布帖子" value={counters?.posts ?? 0} unit="篇" />
+          <StatsRow icon={<Heart size={15} className="text-red-400" />} label="获得点赞" value={counters?.likedPosts ?? 0} unit="次" />
+          <StatsRow icon={<Bookmark size={15} className="text-yellow-500" />} label="被收藏" value={counters?.favedPosts ?? 0} unit="次" />
+          <StatsRow icon={<Users size={15} className="text-green-500" />} label="粉丝数" value={counters?.followers ?? 0} unit="人" />
+          <StatsRow icon={<TrendingUp size={15} className="text-purple-500" />} label="关注数" value={counters?.followings ?? 0} unit="人" />
+        </div>
       </div>
 
-      {/* Badges — no backend API yet */}
+      {/* Badges */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <h3 className="text-[16px] font-bold text-gray-900 mb-3">我的勋章</h3>
-        <EmptyState
-          icon={Shield}
-          title="勋章系统暂未接入"
-          description="需要后端勋章系统接口支持"
-        />
+        <h3 className="text-[16px] font-bold text-gray-900 mb-4">我的勋章</h3>
+        {badges.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-3">继续发帖和互动，解锁更多成就</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-3">
+            {badges.map((b) => (
+              <div key={b.id} className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-gray-50 border border-gray-100">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${b.color}`}>
+                  {b.icon}
+                </div>
+                <span className="text-[11px] text-gray-600 text-center leading-tight">{b.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
+  );
+}
+
+type Badge = { id: string; name: string; icon: React.ReactNode; color: string };
+
+function computeBadges(counters?: RelationCountersResponse): Badge[] {
+  const badges: Badge[] = [];
+  if (!counters) return badges;
+  if (counters.posts >= 1)
+    badges.push({ id: 'first_post', name: '初次发帖', icon: <FileText size={16} className="text-white" />, color: 'bg-blue-400' });
+  if (counters.posts >= 10)
+    badges.push({ id: 'active_author', name: '活跃作者', icon: <Star size={16} className="text-white" />, color: 'bg-indigo-500' });
+  if (counters.posts >= 50)
+    badges.push({ id: 'prolific', name: '高产创作', icon: <Award size={16} className="text-white" />, color: 'bg-purple-500' });
+  if (counters.likedPosts >= 10)
+    badges.push({ id: 'liked', name: '受众喜爱', icon: <Heart size={16} className="text-white" />, color: 'bg-red-400' });
+  if (counters.likedPosts >= 100)
+    badges.push({ id: 'popular', name: '百赞达人', icon: <TrendingUp size={16} className="text-white" />, color: 'bg-orange-500' });
+  if (counters.followers >= 10)
+    badges.push({ id: 'rising', name: '新晋达人', icon: <Users size={16} className="text-white" />, color: 'bg-green-500' });
+  if (counters.followers >= 100)
+    badges.push({ id: 'influencer', name: '意见领袖', icon: <Shield size={16} className="text-white" />, color: 'bg-yellow-500' });
+  if (counters.favedPosts >= 10)
+    badges.push({ id: 'valued', name: '价值内容', icon: <Bookmark size={16} className="text-white" />, color: 'bg-teal-500' });
+  return badges;
+}
+
+function StatsRow({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: number; unit: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 text-[13px] text-gray-500">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <span className="text-[14px] font-semibold text-gray-800">
+        {value.toLocaleString()} <span className="text-gray-400 font-normal text-[12px]">{unit}</span>
+      </span>
+    </div>
   );
 }
 
