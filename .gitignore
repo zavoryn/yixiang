@@ -28,3 +28,12 @@ build/
 # Environment
 .env
 .env.local
+
+# Screenshots & design mockups (local only)
+*.jpeg
+*.jpg
+现在页面/
+原型设计图/
+
+# Runtime logs
+logs/
