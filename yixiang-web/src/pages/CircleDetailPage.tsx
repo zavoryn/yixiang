@@ -9,6 +9,9 @@ import {
 import { PageShell } from '@/components/layout/PageShell';
 import { circleService } from '@/services/circleService';
 import { topicService } from '@/services/topicService';
+import { relationService } from '@/services/relationService';
+import { useFollow } from '@/features/relation/useFollow';
+import { useUnfollow } from '@/features/relation/useUnfollow';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
@@ -672,6 +675,7 @@ function StatBox({ value, label }: { value: string; label: string }) {
 
 function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopics?: { tag: string; postCount: number; viewCount: number }[] }) {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const owner = circle.topMembers.find((m) => m.role === 'OWNER');
 
   return (
@@ -698,9 +702,7 @@ function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopi
               </p>
             </div>
           </div>
-          <button className="w-full border border-blue-600 text-blue-600 hover:bg-blue-50 py-1.5 rounded-lg text-sm font-medium transition-colors">
-            关注圈主
-          </button>
+          {isAuthenticated && <OwnerFollowButton ownerId={owner.userId} />}
         </div>
       )}
 
@@ -770,6 +772,31 @@ function CircleRightPanel({ circle, hotTopics }: { circle: CircleDetail; hotTopi
         </div>
       )}
     </>
+  );
+}
+
+function OwnerFollowButton({ ownerId }: { ownerId: number }) {
+  const { data: status } = useQuery({
+    queryKey: ['relation', 'status', ownerId],
+    queryFn: () => relationService.status(ownerId),
+  });
+  const follow = useFollow(ownerId);
+  const unfollow = useUnfollow(ownerId);
+  const isFollowing = status?.following ?? false;
+  const isPending = follow.isPending || unfollow.isPending;
+
+  return (
+    <button
+      onClick={() => isFollowing ? unfollow.mutate() : follow.mutate()}
+      disabled={isPending}
+      className={`w-full py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+        isFollowing
+          ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          : 'border border-blue-600 text-blue-600 hover:bg-blue-50'
+      }`}
+    >
+      {isPending ? '...' : isFollowing ? '已关注' : '关注圈主'}
+    </button>
   );
 }
 
