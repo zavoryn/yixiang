@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Share, ThumbsUp, MessageCircle, MoreHorizontal, ChevronRight, ChevronDown,
-  MapPin, Briefcase, Calendar, BarChart2, ArrowUp, Shield, Award, Zap,
+  Share, ThumbsUp, MessageCircle, MoreHorizontal, ChevronDown,
+  MapPin, Briefcase, Calendar, BarChart2, Shield,
   FileText
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
@@ -426,72 +426,34 @@ function RightSidebar({ profile, isOwnProfile }: { profile: ProfileResponse; isO
         )}
       </div>
 
-      {/* Recent visitors */}
+      {/* Recent visitors — no backend API yet */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-[16px] font-bold text-gray-900">最近访客</h3>
-          <a href="#" className="text-gray-400 hover:text-blue-600 flex items-center text-xs">
-            查看全部 <ChevronRight size={14} />
-          </a>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="flex mb-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <img
-                key={i}
-                src={`https://i.pravatar.cc/150?img=${i + 10}`}
-                className={`w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover ${i !== 1 ? '-ml-3' : ''} hover:-translate-y-1 transition-transform`}
-                style={{ zIndex: 10 - i }}
-              />
-            ))}
-          </div>
-          <span className="text-xs text-gray-500">等 23 人来访</span>
-        </div>
+        <h3 className="text-[16px] font-bold text-gray-900 mb-3">最近访客</h3>
+        <EmptyState
+          icon={Shield}
+          title="访客记录暂未接入"
+          description="需要后端访客追踪接口支持"
+        />
       </div>
 
-      {/* Stats */}
+      {/* Stats — no backend API yet */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-[16px] font-bold text-gray-900">数据统计</h3>
-            <span className="text-xs text-gray-400">(近7天)</span>
-          </div>
-          <a href="#" className="text-gray-400 hover:text-blue-600 flex items-center text-xs">
-            详情 <ChevronRight size={14} />
-          </a>
-        </div>
-
-        <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-          <StatCard label="帖子阅读" value="3,245" trend="+12.5%" positive />
-          <StatCard label="新增粉丝" value="86" trend="+8.3%" positive />
-          <StatCard label="获赞数" value="342" trend="+15.2%" positive />
-          <StatCard label="新增收藏" value="128" trend="+6.7%" positive />
-        </div>
+        <h3 className="text-[16px] font-bold text-gray-900 mb-3">数据统计</h3>
+        <EmptyState
+          icon={BarChart2}
+          title="数据统计暂未接入"
+          description="需要后端数据分析接口支持"
+        />
       </div>
 
-      {/* Badges */}
+      {/* Badges — no backend API yet */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="text-[16px] font-bold text-gray-900">我的勋章</h3>
-          <a href="#" className="text-gray-400 hover:text-blue-600 flex items-center text-xs">
-            查看全部 <ChevronRight size={14} />
-          </a>
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { icon: Award, bg: 'from-orange-400 to-red-500', label: '优质内容', border: 'border-orange-200' },
-            { icon: Shield, bg: 'from-yellow-400 to-amber-500', label: '深度分析', border: 'border-yellow-200' },
-            { icon: Zap, bg: 'from-blue-400 to-indigo-500', label: '活跃达人', border: 'border-blue-200' },
-            { icon: Shield, bg: 'from-emerald-400 to-green-600', label: '长期贡献', border: 'border-green-200' },
-          ].map((badge) => (
-            <div key={badge.label} className="flex flex-col items-center gap-2">
-              <div className={`w-[60px] h-[60px] rounded-xl flex items-center justify-center bg-gradient-to-br ${badge.bg} border-2 ${badge.border} shadow-sm hover:scale-105 transition-transform cursor-pointer`}>
-                <badge.icon size={24} className="text-white/80" />
-              </div>
-              <span className="text-xs text-gray-600 font-medium">{badge.label}</span>
-            </div>
-          ))}
-        </div>
+        <h3 className="text-[16px] font-bold text-gray-900 mb-3">我的勋章</h3>
+        <EmptyState
+          icon={Shield}
+          title="勋章系统暂未接入"
+          description="需要后端勋章系统接口支持"
+        />
       </div>
     </>
   );
@@ -509,15 +471,3 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
   );
 }
 
-function StatCard({ label, value, trend, positive }: { label: string; value: string; trend: string; positive: boolean }) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-xs text-gray-500 mb-1">{label}</span>
-      <span className="text-[22px] font-bold text-gray-900 mb-1 leading-none">{value}</span>
-      <div className={`flex items-center text-xs font-medium ${positive ? 'text-green-500' : 'text-red-500'}`}>
-        <ArrowUp size={12} strokeWidth={3} className="mr-0.5" />
-        {trend.replace('+', '')}
-      </div>
-    </div>
-  );
-}
