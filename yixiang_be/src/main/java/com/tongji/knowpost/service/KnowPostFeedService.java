@@ -15,4 +15,6 @@ public interface KnowPostFeedService {
     FeedPageResponse getLikedFeed(long ownerUserId, Long viewerUserId, int page, int size);
 
     FeedPageResponse getCirclePosts(long circleId, Boolean featured, String cursor, int size, Long viewerUserId);
+
+    FeedPageResponse getFollowingFeed(long userId, int page, int size);
 }

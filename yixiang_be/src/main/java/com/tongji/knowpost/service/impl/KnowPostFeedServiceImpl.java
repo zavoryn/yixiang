@@ -1,6 +1,7 @@
 package com.tongji.knowpost.service.impl;
 
 import com.tongji.knowpost.service.KnowPostFeedService;
+import com.tongji.relation.mapper.RelationMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tongji.knowpost.api.dto.FeedItemResponse;
@@ -40,6 +41,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
     private final Cache<String, FeedPageResponse> feedPublicCache;
     private final Cache<String, FeedPageResponse> feedMineCache;
     private final HotKeyDetector hotKey;
+    private final RelationMapper relationMapper;
     private static final Logger log = LoggerFactory.getLogger(KnowPostFeedServiceImpl.class);
     private static final int LAYOUT_VER = 1;
     private final ConcurrentHashMap<String, Object> singleFlight = new ConcurrentHashMap<>();
@@ -64,7 +66,8 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
             ActivityMapper activityMapper,
             @Qualifier("feedPublicCache") Cache<String, FeedPageResponse> feedPublicCache,
             @Qualifier("feedMineCache") Cache<String, FeedPageResponse> feedMineCache,
-            HotKeyDetector hotKey
+            HotKeyDetector hotKey,
+            RelationMapper relationMapper
     ) {
         this.mapper = mapper;
         this.redis = redis;
@@ -75,6 +78,7 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         this.feedPublicCache = feedPublicCache;
         this.feedMineCache = feedMineCache;
         this.hotKey = hotKey;
+        this.relationMapper = relationMapper;
     }
 
     /**
@@ -620,5 +624,22 @@ public class KnowPostFeedServiceImpl implements KnowPostFeedService {
         String nextCursor = hasMore && !rows.isEmpty() ? String.valueOf(rows.getLast().getId()) : null;
         List<FeedItemResponse> items = mapRowsToItems(rows, viewerUserId, false);
         return new FeedPageResponse(items, 1, safeSize, hasMore, nextCursor);
+    }
+
+    @Override
+    public FeedPageResponse getFollowingFeed(long userId, int page, int size) {
+        int safeSize = Math.min(Math.max(size, 1), 50);
+        int safePage = Math.max(page, 1);
+        int offset = (safePage - 1) * safeSize;
+
+        List<Long> followingIds = relationMapper.listFollowing(userId, 500, 0);
+        if (followingIds.isEmpty()) {
+            return new FeedPageResponse(List.of(), safePage, safeSize, false);
+        }
+        List<KnowPostFeedRow> rows = mapper.listFollowingFeed(followingIds, safeSize + 1, offset);
+        boolean hasMore = rows.size() > safeSize;
+        if (hasMore) rows = rows.subList(0, safeSize);
+        List<FeedItemResponse> items = mapRowsToItems(rows, userId, false);
+        return new FeedPageResponse(items, safePage, safeSize, hasMore);
     }
 }

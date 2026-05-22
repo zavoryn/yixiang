@@ -61,6 +61,11 @@ export const knowpostService = {
     apiFetch<FeedResponse>(`${KNOWPOST_PREFIX}/feed?page=${page}&size=${size}`)
   ,
 
+  // 获取关注流（需鉴权）
+  followingFeed: (page = 1, size = 20) =>
+    apiFetch<FeedResponse>(`${KNOWPOST_PREFIX}/following?page=${page}&size=${size}`)
+  ,
+
   // 获取我的知文（需鉴权）
   mine: (page = 1, size = 20) =>
     apiFetch<FeedResponse>(`${KNOWPOST_PREFIX}/mine?page=${page}&size=${size}`)

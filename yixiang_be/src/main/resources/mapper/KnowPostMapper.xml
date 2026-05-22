@@ -93,6 +93,42 @@
         WHERE id = #{id} AND creator_id = #{creatorId}
     </update>
 
+    <!-- 关注流：查询所关注用户的公开已发布帖子 -->
+    <select id="listFollowingFeed" resultType="com.tongji.knowpost.model.KnowPostFeedRow">
+        SELECT
+            p.id,
+            p.title,
+            p.description,
+            p.tags,
+            p.img_urls AS imgUrls,
+            u.avatar AS authorAvatar,
+            u.nickname AS authorNickname,
+            u.id AS authorId,
+            u.tags_json AS authorTagJson,
+            p.publish_time AS publishTime,
+            p.is_top AS isTop
+        FROM know_posts p
+        JOIN users u ON p.creator_id = u.id
+        WHERE p.status = 'published'
+          AND p.visible = 'public'
+          AND p.creator_id IN
+            <foreach item="id" collection="creatorIds" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+        ORDER BY p.publish_time DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countFollowingFeed" resultType="long">
+        SELECT COUNT(*) FROM know_posts p
+        WHERE p.status = 'published'
+          AND p.visible = 'public'
+          AND p.creator_id IN
+            <foreach item="id" collection="creatorIds" open="(" separator="," close=")">
+                #{id}
+            </foreach>
+    </select>
+
     <!-- 首页 Feed 列表查询（公开可见 + 已发布），置顶优先，其次按发布时间倒序 -->
     <select id="listFeedPublic" resultType="com.tongji.knowpost.model.KnowPostFeedRow">
         SELECT

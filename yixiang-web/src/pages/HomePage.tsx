@@ -34,8 +34,10 @@ export default function HomePage() {
     queryFn: () => {
       if (activeTab === '推荐') return knowpostService.feed(page, 10);
       if (activeTab === '最新') return hotService.posts('24h', undefined, 10);
+      if (activeTab === '关注') return knowpostService.followingFeed(page, 10);
       return Promise.resolve({ items: [], page, size: 10, hasMore: false });
     },
+    enabled: activeTab !== '关注' || isAuthenticated,
   });
 
   const posts = data?.items ?? [];
@@ -97,9 +99,9 @@ export default function HomePage() {
           <div className="bg-white p-8 rounded-b-2xl">
             <EmptyState
               icon={Star}
-              title={activeTab === '关注' ? '关注流待接入' : '暂无内容'}
-              description={activeTab === '关注' ? '关注动态接口已接入，按帖子聚合的关注流还需要后端专用接口。' : '还没有人发布帖子，来写第一篇吧'}
-              action={isAuthenticated && activeTab !== '关注' ? <Button onClick={() => navigate('/create')}>发布帖子</Button> : undefined}
+              title={activeTab === '关注' ? '暂无关注内容' : '暂无内容'}
+              description={activeTab === '关注' ? '关注更多用户，即可看到他们发布的帖子' : '还没有人发布帖子，来写第一篇吧'}
+              action={isAuthenticated ? <Button onClick={() => navigate(activeTab === '关注' ? '/search' : '/create')}>{activeTab === '关注' ? '发现用户' : '发布帖子'}</Button> : undefined}
             />
           </div>
         ) : (

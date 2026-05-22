@@ -71,4 +71,10 @@ public interface KnowPostMapper {
     List<KnowPost> listPublishedSince(@Param("since") Instant since, @Param("limit") int limit);
 
     List<KnowPost> listByTag(@Param("tag") String tag, @Param("offset") int offset, @Param("limit") int limit);
+
+    List<KnowPostFeedRow> listFollowingFeed(@Param("creatorIds") Collection<Long> creatorIds,
+                                            @Param("limit") int limit,
+                                            @Param("offset") int offset);
+
+    long countFollowingFeed(@Param("creatorIds") Collection<Long> creatorIds);
 }

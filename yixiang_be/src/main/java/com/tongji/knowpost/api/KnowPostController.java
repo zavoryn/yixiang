@@ -155,6 +155,17 @@ public class KnowPostController {
     }
 
     /**
+     * 关注流：当前用户所关注用户的公开帖子，按发布时间倒序。
+     */
+    @GetMapping("/following")
+    public FeedPageResponse followingFeed(@RequestParam(value = "page", defaultValue = "1") int page,
+                                          @RequestParam(value = "size", defaultValue = "20") int size,
+                                          @AuthenticationPrincipal Jwt jwt) {
+        long userId = jwtService.extractUserId(jwt);
+        return feedService.getFollowingFeed(userId, page, Math.min(size, 50));
+    }
+
+    /**
      * 知文详情（公开：published+public；非公开需作者本人）。
      */
     @GetMapping("/detail/{id}")
