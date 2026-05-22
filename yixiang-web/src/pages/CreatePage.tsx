@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ChevronDown, Bold, Italic, Underline, List, TextQuote, Code,
-  Image as ImageIcon, PlaySquare, Globe, Lock, Save, ImagePlus,
+  Image as ImageIcon, PlaySquare, Globe, Lock, Save, ImagePlus, X,
   ShieldCheck, AlertCircle, Ban, MessageSquare, ThumbsUp,
   Lightbulb, CheckCircle2, FileEdit, Users,
 } from 'lucide-react';
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { EmptyState } from '@/components/common/EmptyState';
 import { draftService, uploadDraftMarkdownContent, type DraftItem } from '@/services/draftService';
+import { knowpostService, uploadToPresigned } from '@/services/knowpostService';
+import { circleService } from '@/services/circleService';
 import { formatRelativeTime } from '@/lib/formatters';
 
 export default function CreatePage() {
@@ -28,6 +30,17 @@ export default function CreatePage() {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [selectedCircleId, setSelectedCircleId] = useState<number | null>(null);
+  const [showCirclePicker, setShowCirclePicker] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const { data: joinedCircles = [] } = useQuery({
+    queryKey: ['circles', 'joined'],
+    queryFn: () => circleService.joined(),
+    enabled: isAuthenticated && postType === 'circle',
+  });
 
   const { data: editingDraft } = useQuery({
     queryKey: ['drafts', editingDraftId],
@@ -41,6 +54,8 @@ export default function CreatePage() {
     setTags(editingDraft.tags ?? []);
     setPostType(editingDraft.circleId ? 'circle' : 'public');
     setVisibility(editingDraft.circleId ? 'private' : 'public');
+    setCoverImageUrl(editingDraft.coverImage ?? null);
+    setSelectedCircleId(editingDraft.circleId ?? null);
 
     let cancelled = false;
     if (editingDraft.contentUrl) {
@@ -68,14 +83,15 @@ export default function CreatePage() {
       draft = await draftService.update(editingDraftId, {
         title: normalizedTitle || null,
         tags,
-        circleId: postType === 'circle' ? editingDraft?.circleId ?? undefined : undefined,
-        coverImage: editingDraft?.coverImage ?? null,
+        circleId: postType === 'circle' ? selectedCircleId : null,
+        coverImage: coverImageUrl,
       });
     } else {
       draft = await draftService.create({
         title: normalizedTitle || null,
         tags,
-        coverImage: null,
+        circleId: postType === 'circle' ? selectedCircleId : null,
+        coverImage: coverImageUrl,
       });
     }
 
@@ -115,6 +131,32 @@ export default function CreatePage() {
       toast.error(err instanceof Error ? err.message : '发布失败');
     },
   });
+
+  const handleCoverImageSelect = async (file: File) => {
+    setCoverUploading(true);
+    try {
+      let draftId = editingDraftId;
+      if (!draftId) {
+        const normalizedTitle = title.trim();
+        if (!normalizedTitle) { toast.info('请先输入标题再上传封面'); setCoverUploading(false); return; }
+        const draft = await draftService.create({ title: normalizedTitle, tags, coverImage: null });
+        draftId = draft.id;
+        navigate(`/create?draftId=${draftId}`, { replace: true });
+      }
+      const ext = file.name.includes('.') ? '.' + file.name.split('.').pop()! : '.jpg';
+      const presign = await knowpostService.presign({ scene: 'knowpost_image', postId: String(draftId), contentType: file.type, ext });
+      await uploadToPresigned(presign.putUrl, presign.headers, file);
+      const url = presign.putUrl.split('?')[0];
+      setCoverImageUrl(url);
+      await draftService.update(draftId, { coverImage: url });
+      qc.invalidateQueries({ queryKey: ['drafts'] });
+      toast.success('封面上传成功');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '封面上传失败');
+    } finally {
+      setCoverUploading(false);
+    }
+  };
 
   const handleAddTag = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && tagInput.trim()) {
@@ -183,9 +225,35 @@ export default function CreatePage() {
                     <div className="font-bold text-[15px] text-gray-900">{opt.label}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{opt.desc}</div>
                   </div>
-                  {opt.key === 'circle' && (
-                    <div className="border border-gray-200 bg-white rounded-lg px-3 py-1.5 flex items-center gap-2 text-sm text-gray-400">
-                      选择圈子 <ChevronDown size={14} />
+                  {opt.key === 'circle' && postType === 'circle' && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowCirclePicker(!showCirclePicker); }}
+                        className="border border-gray-200 bg-white rounded-lg px-3 py-1.5 flex items-center gap-2 text-sm text-gray-600 hover:border-blue-400"
+                      >
+                        {selectedCircleId
+                          ? (joinedCircles.find((c) => c.id === selectedCircleId)?.name ?? '选择圈子')
+                          : '选择圈子'
+                        }
+                        <ChevronDown size={14} />
+                      </button>
+                      {showCirclePicker && (
+                        <div className="absolute top-10 right-0 z-50 bg-white rounded-xl shadow-lg border border-gray-100 min-w-[200px] py-2">
+                          {joinedCircles.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-gray-400">暂无加入的圈子</div>
+                          ) : joinedCircles.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => { setSelectedCircleId(c.id); setShowCirclePicker(false); }}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors ${selectedCircleId === c.id ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
+                            >
+                              {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -302,18 +370,43 @@ export default function CreatePage() {
           {/* Cover image */}
           <section>
             <h3 className="font-bold text-[15px] text-gray-900 mb-4">添加封面</h3>
-            <div
-              className="border-2 border-dashed border-gray-200 hover:border-blue-400 bg-gray-50 hover:bg-[#f8faff] rounded-xl p-6 flex items-center gap-4 cursor-pointer transition-colors w-[320px]"
-              onClick={() => toast.info('图片上传功能即将上线')}
-            >
-              <div className="bg-white p-2.5 rounded-lg shadow-sm border border-gray-100 text-gray-400">
-                <ImagePlus size={24} />
+            <input
+              ref={coverInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverImageSelect(f); e.target.value = ''; }}
+            />
+            {coverImageUrl ? (
+              <div className="relative w-[320px] h-[180px] rounded-xl overflow-hidden border border-gray-200 group">
+                <img src={coverImageUrl} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => { setCoverImageUrl(null); }}
+                  className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={14} />
+                </button>
+                <button
+                  onClick={() => coverInputRef.current?.click()}
+                  className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  更换
+                </button>
               </div>
-              <div>
-                <div className="font-medium text-gray-700 text-sm">上传图片</div>
-                <div className="text-xs text-gray-400 mt-1">建议尺寸 16:9，大小不超过 5MB</div>
+            ) : (
+              <div
+                className={`border-2 border-dashed border-gray-200 hover:border-blue-400 bg-gray-50 hover:bg-[#f8faff] rounded-xl p-6 flex items-center gap-4 cursor-pointer transition-colors w-[320px] ${coverUploading ? 'opacity-60 pointer-events-none' : ''}`}
+                onClick={() => coverInputRef.current?.click()}
+              >
+                <div className="bg-white p-2.5 rounded-lg shadow-sm border border-gray-100 text-gray-400">
+                  <ImagePlus size={24} />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-700 text-sm">{coverUploading ? '上传中...' : '上传图片'}</div>
+                  <div className="text-xs text-gray-400 mt-1">建议尺寸 16:9，大小不超过 5MB</div>
+                </div>
               </div>
-            </div>
+            )}
           </section>
         </div>
 
