@@ -35,5 +35,8 @@ build/
 现在页面/
 原型设计图/
 
+# Legacy frontend (replaced by yixiang-web/)
+yixiang_fe/
+
 # Runtime logs
 logs/
