@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/apiClient";
-import type { CircleDetail, CircleListResponse, CircleSummary, CircleMemberListResponse } from '@/types/circle';
+import type { CircleDetail, CircleFile, CircleListResponse, CircleSummary, CircleMemberListResponse } from '@/types/circle';
 import type { FeedItem } from '@/types/knowpost';
 
 const BASE = '/api/v1/circles';
@@ -44,4 +44,22 @@ export const circleService = {
     const q = new URLSearchParams({ page: String(page), size: String(size) });
     return apiFetch<CircleMemberListResponse>(`${BASE}/${id}/members?${q.toString()}`);
   },
+
+  update: (id: number, body: { name?: string; description?: string; avatarUrl?: string; category?: string; visibility?: string }) =>
+    apiFetch<void>(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+  listFiles: (id: number, limit = 50): Promise<CircleFile[]> =>
+    apiFetch<CircleFile[]>(`${BASE}/${id}/files?limit=${limit}`),
+
+  uploadFile: (id: number, file: File): Promise<CircleFile> => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiFetch<CircleFile>(`${BASE}/${id}/files`, { method: 'POST', body: form });
+  },
+
+  deleteFile: (circleId: number, fileId: number): Promise<void> =>
+    apiFetch<void>(`${BASE}/${circleId}/files/${fileId}`, { method: 'DELETE' }),
+
+  featurePost: (circleId: number, postId: string, featured: boolean): Promise<void> =>
+    apiFetch<void>(`${BASE}/${circleId}/posts/${postId}/feature?featured=${featured}`, { method: 'PUT' }),
 };

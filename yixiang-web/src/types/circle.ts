@@ -46,3 +46,14 @@ export interface CircleMemberListResponse {
   size: number;
   hasMore: boolean;
 }
+
+export interface CircleFile {
+  id: number;
+  filename: string;
+  fileSize: number;
+  mimeType: string | null;
+  ossUrl: string;
+  uploaderId: number;
+  uploaderNickname: string;
+  createdAt: string;
+}
