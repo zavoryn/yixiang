@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tongji.dm.mapper.DmConversationMapper">
+
+    <resultMap id="ConvMap" type="com.tongji.dm.model.DmConversation">
+        <id     property="id"             column="id"/>
+        <result property="user1Id"        column="user1_id"/>
+        <result property="user2Id"        column="user2_id"/>
+        <result property="unread1"        column="unread1"/>
+        <result property="unread2"        column="unread2"/>
+        <result property="lastMsgPreview" column="last_msg_preview"/>
+        <result property="lastMsgAt"      column="last_msg_at"/>
+        <result property="createdAt"      column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.tongji.dm.model.DmConversation">
+        INSERT INTO dm_conversations (id, user1_id, user2_id, unread1, unread2, last_msg_preview, last_msg_at)
+        VALUES (#{id}, #{user1Id}, #{user2Id}, 0, 0, '', NOW(3))
+    </insert>
+
+    <select id="findBetween" resultMap="ConvMap">
+        SELECT * FROM dm_conversations
+        WHERE (user1_id = #{a} AND user2_id = #{b})
+           OR (user1_id = #{b} AND user2_id = #{a})
+        LIMIT 1
+    </select>
+
+    <select id="findById" resultMap="ConvMap">
+        SELECT * FROM dm_conversations WHERE id = #{id}
+    </select>
+
+    <select id="listByUser" resultMap="ConvMap">
+        SELECT * FROM dm_conversations
+        WHERE user1_id = #{userId} OR user2_id = #{userId}
+        ORDER BY last_msg_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <update id="updateLastMsg">
+        UPDATE dm_conversations
+        SET last_msg_preview = #{preview}, last_msg_at = NOW(3)
+        WHERE id = #{id}
+    </update>
+
+    <!-- Increment unread for the recipient -->
+    <update id="incrementUnread">
+        UPDATE dm_conversations
+        SET unread1 = CASE WHEN #{recipientId} = #{user1Id} THEN unread1 + 1 ELSE unread1 END,
+            unread2 = CASE WHEN #{recipientId} != #{user1Id} THEN unread2 + 1 ELSE unread2 END
+        WHERE id = #{id}
+    </update>
+
+    <!-- Clear unread for the reader -->
+    <update id="clearUnread">
+        UPDATE dm_conversations
+        SET unread1 = CASE WHEN #{userId} = #{user1Id} THEN 0 ELSE unread1 END,
+            unread2 = CASE WHEN #{userId} != #{user1Id} THEN 0 ELSE unread2 END
+        WHERE id = #{id}
+    </update>
+
+    <select id="totalUnread" resultType="int">
+        SELECT COALESCE(SUM(
+            CASE WHEN user1_id = #{userId} THEN unread1
+                 ELSE unread2 END
+        ), 0)
+        FROM dm_conversations
+        WHERE user1_id = #{userId} OR user2_id = #{userId}
+    </select>
+
+</mapper>

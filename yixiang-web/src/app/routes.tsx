@@ -15,6 +15,7 @@ import PostDetailPage from '@/pages/PostDetailPage';
 import CreatePage from '@/pages/CreatePage';
 import DraftsPage from '@/pages/DraftsPage';
 import SettingsPage from '@/pages/SettingsPage';
+import MessagesPage from '@/pages/MessagesPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 export function AppRoutes() {
@@ -36,6 +37,8 @@ export function AppRoutes() {
         {/* 需要登录 */}
         <Route element={<ProtectedRoute />}>
           <Route path="/following" element={<HomePage />} />
+          <Route path="/messages" element={<MessagesPage />} />
+          <Route path="/messages/:convId" element={<MessagesPage />} />
           <Route path="/notifications" element={<NotificationPage />} />
           <Route path="/collections" element={<CollectionsPage />} />
           <Route path="/profile" element={<ProfilePage />} />

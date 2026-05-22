@@ -3,7 +3,10 @@ import {
   Home, UserPlus, Users, Flame, Hash, Star,
   User, Bell, Mail, FileEdit, Settings,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
+import { useUnreadCount } from '@/features/notification/useUnreadCount';
+import { messageService } from '@/services/messageService';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -11,11 +14,22 @@ interface NavItem {
   icon: typeof Home;
   label: string;
   badge?: number;
-  onClick?: () => void;
 }
 
-export function Sidebar({ unreadCount = 0 }: { unreadCount?: number }) {
+export function Sidebar() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  const { data: notifUnread } = useUnreadCount();
+  const notifCount = notifUnread?.unreadCount ?? 0;
+
+  const { data: dmUnread } = useQuery({
+    queryKey: ['messages', 'unread'],
+    queryFn: () => messageService.unreadCount(),
+    enabled: isAuthenticated,
+    refetchInterval: 30_000,
+  });
+  const dmCount = dmUnread?.unreadCount ?? 0;
 
   const navItems: NavItem[] = [
     { to: '/', icon: Home, label: '首页' },
@@ -25,8 +39,8 @@ export function Sidebar({ unreadCount = 0 }: { unreadCount?: number }) {
     { to: '/topics', icon: Hash, label: '话题' },
     { to: '/collections', icon: Star, label: '收藏' },
     { to: '/profile', icon: User, label: '我的主页' },
-    { to: '/notifications', icon: Bell, label: '通知', badge: unreadCount },
-    { to: '#dm', icon: Mail, label: '私信', onClick: () => toast.info('私信功能即将上线') },
+    { to: '/notifications', icon: Bell, label: '通知', badge: notifCount },
+    { to: '/messages', icon: Mail, label: '私信', badge: dmCount },
   ];
 
   const userItems: NavItem[] = [
@@ -37,52 +51,35 @@ export function Sidebar({ unreadCount = 0 }: { unreadCount?: number }) {
   return (
     <aside className="sticky top-[88px] flex h-[calc(100vh-88px)] w-[220px] shrink-0 flex-col overflow-y-auto pb-6 no-scrollbar">
       <nav className="flex flex-col gap-1">
-        {navItems.map((item) => {
-          if (item.onClick) {
-            return (
-              <button
-                key={item.to}
-                type="button"
-                onClick={item.onClick}
-                className="flex items-center justify-between rounded-xl px-4 py-3 text-left text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]"
-              >
+        {navItems.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.to === '/'}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center justify-between rounded-xl px-4 py-3 transition-colors',
+                isActive
+                  ? 'bg-[var(--color-sidebar-active)] font-semibold text-[var(--color-sidebar-active-foreground)]'
+                  : 'text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]',
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
                 <div className="flex items-center gap-3">
-                  <item.icon size={20} />
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                   <span className="text-[15px]">{item.label}</span>
                 </div>
-              </button>
-            );
-          }
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center justify-between rounded-xl px-4 py-3 transition-colors',
-                  isActive
-                    ? 'bg-[var(--color-sidebar-active)] font-semibold text-[var(--color-sidebar-active-foreground)]'
-                    : 'text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]',
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <div className="flex items-center gap-3">
-                    <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                    <span className="text-[15px]">{item.label}</span>
-                  </div>
-                  {item.badge !== undefined && item.badge > 0 && (
-                    <span className="rounded-full bg-[var(--color-destructive)] px-2 py-0.5 text-[11px] font-bold text-white">
-                      {item.badge > 99 ? '99+' : item.badge}
-                    </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          );
-        })}
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="rounded-full bg-[var(--color-destructive)] px-2 py-0.5 text-[11px] font-bold text-white">
+                    {item.badge > 99 ? '99+' : item.badge}
+                  </span>
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="my-4 mx-4 border-t border-[var(--color-border)]" />
