@@ -160,4 +160,17 @@
         LIMIT #{limit}
     </select>
 
+
+    <select id="searchByNickname" resultMap="UserResultMap">
+        SELECT id, nickname, avatar, verified, role_title
+        FROM users
+        WHERE nickname LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY id DESC
+        LIMIT #{size} OFFSET #{offset}
+    </select>
+
+    <select id="countByNickname" resultType="int">
+        SELECT COUNT(*) FROM users WHERE nickname LIKE CONCAT('%', #{keyword}, '%')
+    </select>
+
 </mapper>

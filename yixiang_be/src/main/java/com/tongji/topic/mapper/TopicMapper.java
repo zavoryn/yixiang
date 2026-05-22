@@ -13,4 +13,6 @@ public interface TopicMapper {
     Topic findByTag(@Param("tag") String tag);
     void upsertOnPost(@Param("tag") String tag);
     void incrementViewBatch(@Param("deltas") Map<String, Long> deltas);
+
+    List<Topic> searchByKeyword(@Param("keyword") String keyword, @Param("limit") int limit);
 }

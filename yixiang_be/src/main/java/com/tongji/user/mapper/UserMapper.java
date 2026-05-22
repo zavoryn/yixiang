@@ -32,4 +32,8 @@ public interface UserMapper {
     List<User> listSummariesByIds(@Param("ids") Collection<Long> ids);
 
     List<Long> findTopFollowedUserIds(@Param("limit") int limit, @Param("excludeIds") Collection<Long> excludeIds);
+
+    List<User> searchByNickname(@Param("keyword") String keyword, @Param("offset") int offset, @Param("size") int size);
+
+    int countByNickname(@Param("keyword") String keyword);
 }
