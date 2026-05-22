@@ -89,11 +89,12 @@ export default function ProfilePage() {
     enabled: !!(isOwnProfile && activeTab === '我的收藏'),
   });
 
-  // Fetch joined circles
+  // Fetch joined circles (always load for sidebar widget + tab)
   const { data: joinedCircles, isLoading: circlesLoading } = useQuery({
     queryKey: ['circles', 'joined', profileUserId],
     queryFn: () => circleService.joined(),
-    enabled: isOwnProfile && activeTab === '我的圈子',
+    enabled: isOwnProfile && profileUserId != null,
+    staleTime: 60_000,
   });
 
   const displayPosts: FeedItem[] = (() => {
@@ -367,6 +368,7 @@ export default function ProfilePage() {
           isOwnProfile={isOwnProfile}
           counters={counters}
           recentVisitors={recentVisitors}
+          joinedCircles={joinedCircles ?? []}
         />
       </aside>
     </PageShell>
@@ -453,11 +455,13 @@ function RightSidebar({
   isOwnProfile,
   counters,
   recentVisitors,
+  joinedCircles,
 }: {
   profile: ProfileResponse;
   isOwnProfile: boolean;
   counters?: RelationCountersResponse;
   recentVisitors: VisitorEntry[];
+  joinedCircles: CircleSummary[];
 }) {
   const navigate = useNavigate();
 
@@ -560,6 +564,44 @@ function RightSidebar({
           </div>
         )}
       </div>
+
+      {/* My circles */}
+      {isOwnProfile && joinedCircles.length > 0 && (
+        <div className="bg-white p-5 rounded-2xl shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-[16px] font-bold text-gray-900">我的圈子</h3>
+            <button
+              onClick={() => navigate('/circles')}
+              className="text-xs text-blue-600 hover:text-blue-700"
+            >
+              发现更多 &gt;
+            </button>
+          </div>
+          <div className="flex flex-col gap-3">
+            {joinedCircles.slice(0, 3).map((circle) => (
+              <div
+                key={circle.id}
+                className="flex items-center gap-3 cursor-pointer group"
+                onClick={() => navigate(`/circles/${circle.id}`)}
+              >
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                  <img
+                    src={circle.avatarUrl || `https://i.pravatar.cc/150?u=c${circle.id}`}
+                    className="w-full h-full object-cover"
+                    alt={circle.name}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                    {circle.name}
+                  </div>
+                  <div className="text-xs text-gray-400">{formatCount(circle.memberCount)} 成员</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }

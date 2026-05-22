@@ -16,6 +16,7 @@
         SELECT post_id FROM user_favorites
         WHERE user_id = #{userId}
         <if test="lastId != null">AND id &lt; #{lastId}</if>
+        <if test="folderId != null">AND folder_id = #{folderId}</if>
         ORDER BY id DESC
         LIMIT #{size}
     </select>

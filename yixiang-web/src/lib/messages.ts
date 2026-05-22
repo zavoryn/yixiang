@@ -20,9 +20,6 @@ export const messages = {
   feedEmpty: '还没有任何内容',
   feedEmptyHint: '关注几个用户或加入一个圈子,这里就会有内容',
 
-  // 私信占位
-  dmComingSoon: '私信功能即将上线',
-
   // 通知
   notificationEmpty: '暂无通知',
 

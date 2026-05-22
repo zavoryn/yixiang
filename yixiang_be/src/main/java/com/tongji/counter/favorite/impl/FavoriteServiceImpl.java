@@ -10,7 +10,6 @@ import com.tongji.counter.favorite.FavoriteService;
 import com.tongji.counter.favorite.FavoritesResponse;
 import com.tongji.knowpost.api.dto.FeedItemResponse;
 import com.tongji.knowpost.mapper.KnowPostMapper;
-import com.tongji.knowpost.model.KnowPost;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -41,31 +40,50 @@ public class FavoriteServiceImpl implements FavoriteService {
     }
 
     @Override
-    public FavoritesResponse list(long userId, Long cursor, int size) {
+    public FavoritesResponse list(long userId, Long cursor, int size, Long folderId) {
         int querySize = size + 1;
-        List<Long> ids = mapper.listPostIds(userId, cursor, querySize);
+        List<Long> ids = mapper.listPostIds(userId, cursor, querySize, folderId);
         boolean hasMore = ids.size() > size;
         if (hasMore) ids = ids.subList(0, size);
 
-        List<FeedItemResponse> items = new ArrayList<>();
-        for (Long id : ids) {
-            KnowPost post = knowPostMapper.findById(id);
-            if (post == null) continue;
+        if (ids.isEmpty()) {
+            return new FavoritesResponse(java.util.Collections.emptyList(), null, false);
+        }
+
+        var rows = knowPostMapper.listFeedByIds(ids);
+        List<FeedItemResponse> items = new ArrayList<>(rows.size());
+        for (var row : rows) {
+            List<String> tags = java.util.Collections.emptyList();
+            try {
+                var parsed = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(row.getTags() != null ? row.getTags() : "[]",
+                                new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+                tags = parsed;
+            } catch (Exception ignored) {}
+
+            String coverImage = null;
+            try {
+                var imgs = new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readValue(row.getImgUrls() != null ? row.getImgUrls() : "[]",
+                                new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+                if (!imgs.isEmpty()) coverImage = imgs.get(0);
+            } catch (Exception ignored) {}
+
             items.add(new FeedItemResponse(
-                    String.valueOf(post.getId()),
-                    post.getTitle(),
-                    post.getDescription(),
-                    null,
-                    null,
-                    null,
-                    null,
-                    post.getTags(),
+                    String.valueOf(row.getId()),
+                    row.getTitle(),
+                    row.getDescription(),
+                    coverImage,
+                    tags,
+                    row.getAuthorAvatar(),
+                    row.getAuthorNickname(),
+                    row.getAuthorTagJson(),
                     null, null, null,
                     null,
                     Boolean.TRUE,
-                    post.getIsTop(),
+                    row.getIsTop(),
                     java.util.Collections.emptyList(), "",
-                    null
+                    row.getPublishTime()
             ));
         }
 

@@ -5,7 +5,7 @@ import java.util.List;
 public interface FavoriteService {
     void add(long userId, long postId);
     void remove(long userId, long postId);
-    FavoritesResponse list(long userId, Long cursor, int size);
+    FavoritesResponse list(long userId, Long cursor, int size, Long folderId);
 
     long createFolder(long userId, String name);
     List<FavoriteFolderDto> listFolders(long userId);

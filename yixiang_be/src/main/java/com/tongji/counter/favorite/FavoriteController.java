@@ -29,9 +29,10 @@ public class FavoriteController {
     public FavoritesResponse list(
             @RequestParam(value = "cursor", required = false) Long cursor,
             @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "folderId", required = false) Long folderId,
             @AuthenticationPrincipal Jwt jwt) {
         long uid = jwtService.extractUserId(jwt);
-        return favoriteService.list(uid, cursor, Math.min(size, 50));
+        return favoriteService.list(uid, cursor, Math.min(size, 50), folderId);
     }
 
     @GetMapping("/folders")

@@ -15,9 +15,10 @@ export interface FavoriteFolder {
 const BASE = '/api/v1/favorites';
 
 export const favoriteService = {
-  list: (cursor?: number, size = 20) => {
+  list: (folderId?: number | null, size = 20, cursor?: number) => {
     const params = new URLSearchParams({ size: String(size) });
     if (cursor) params.set('cursor', String(cursor));
+    if (folderId != null) params.set('folderId', String(folderId));
     return apiFetch<FavoritesResponse>(`${BASE}?${params.toString()}`);
   },
 

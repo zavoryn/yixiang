@@ -22,7 +22,7 @@ export default function CollectionsPage() {
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['favorites', activeFolder],
-    queryFn: () => favoriteService.list(undefined, 50),
+    queryFn: () => favoriteService.list(activeFolder, 50),
   });
 
   const { data: folders = [], refetch: refetchFolders } = useQuery({
