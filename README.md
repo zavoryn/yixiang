@@ -1,4 +1,4 @@
-# 颐享 (YiXiang) — 知识分享社区
+# 颐享 (YiXiang) — 股票投资私域社区
 
 ![Java](https://img.shields.io/badge/Java-21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=flat-square&logo=springboot&logoColor=white)
@@ -10,30 +10,23 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 
-> 围绕「圈子」构建垂直兴趣社区，用 AI 让知识流动更高效。
+> 股票投资人的私域圈子 — 分享策略、交流观点、AI 辅助研究
 
-颐享是一个开源知识分享社区平台。用户可以创建或加入感兴趣的圈子，发布图文内容，与其他成员互动交流。平台集成了 AI 智能问答，支持对圈子内文档进行 RAG 检索与流式对话。后端基于 Spring Boot 事件驱动架构，通过 Outbox + Canal + Kafka 保证分布式数据一致性；Redis + Lua 实现高性能互动计数；三级缓存 + 热点检测应对高并发信息流读取。
+颐享是一个面向股票投资领域的私域社区平台。KOL / 基金经理可以创建专属圈子，分享投资策略、个股分析与市场观点；成员在圈内交流讨论，获取高质量投研内容。平台集成 AI 智能问答，支持对圈子内研报、纪要等文档进行 RAG 检索与流式对话，快速提炼关键信息。后端基于 Spring Boot 事件驱动架构，通过 Outbox + Canal + Kafka 保证分布式数据一致性；Redis + Lua 实现高性能互动计数；三级缓存 + 热点检测应对高并发信息流读取。
 
 ## 页面预览
 
-<table>
-  <tr>
-    <td align="center"><b>首页信息流</b></td>
-    <td align="center"><b>登录</b></td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/homepage.png" width="480" alt="首页信息流"/></td>
-    <td><img src="screenshots/login.png" width="480" alt="登录页"/></td>
-  </tr>
-  <tr>
-    <td align="center"><b>圈子广场</b></td>
-    <td align="center"><b>发布帖子</b></td>
-  </tr>
-  <tr>
-    <td><img src="screenshots/circle-square.png" width="480" alt="圈子广场"/></td>
-    <td><img src="screenshots/create-post.png" width="480" alt="发布帖子"/></td>
-  </tr>
-</table>
+<p align="center"><b>首页 — 投资信息流</b></p>
+<p align="center"><img src="screenshots/homepage.png" alt="首页信息流" width="720"/></p>
+
+<p align="center"><b>登录</b></p>
+<p align="center"><img src="screenshots/login.png" alt="登录页" width="720"/></p>
+
+<p align="center"><b>圈子广场 — 发现投资圈</b></p>
+<p align="center"><img src="screenshots/circle-square.png" alt="圈子广场" width="720"/></p>
+
+<p align="center"><b>发布投研内容</b></p>
+<p align="center"><img src="screenshots/create-post.png" alt="发布帖子" width="720"/></p>
 
 ## 功能概览
 
@@ -41,16 +34,16 @@
 
 | 模块 | 功能 |
 |------|------|
-| **用户系统** | 注册/登录、JWT 双令牌认证（RS256）、个人主页、头像上传、标签管理、访客统计 |
-| **内容发布** | 富文本发帖（Markdown）、草稿箱、图片/视频上传（OSS 预签名直传）、圈子选择 |
-| **社交互动** | 点赞/收藏（Redis + Lua 原子操作）、评论、关注/取关 |
+| **用户系统** | 注册/登录、JWT 双令牌认证（RS256）、投资主页、头像上传、标签管理、访客统计 |
+| **内容发布** | 富图文发帖（Markdown）、草稿箱、图片/视频上传（OSS 预签名直传）、关联圈子 |
+| **社交互动** | 点赞/收藏（Redis + Lua 原子操作）、评论讨论、关注/取关 |
 | **信息流** | 首页 Feed（推荐/关注/热门）、三级缓存（Caffeine → Redis 页面 → Redis 片段）、热点检测 |
-| **圈子** | 创建圈子、加入/退出、圈子主页（帖子/成员/问答/精华/文件）、圈子广场搜索 |
+| **圈子（私域）** | 创建投资圈子、加入/退出、圈子主页（策略分享/成员/问答/精华/研报文件）、圈子广场搜索 |
 | **搜索** | 全文检索（帖子/用户/话题/圈子）、search_after 游标分页、热门搜索 |
 | **私信** | 一对一私信、会话列表、实时消息 |
 | **通知** | 点赞/评论/关注通知、未读计数 |
 | **收藏** | 收藏夹管理、分类筛选 |
-| **AI 问答** | 基于 RAG 的文档问答、SSE 流式生成、向量检索 |
+| **AI 问答** | 基于 RAG 的研报/纪要文档问答、SSE 流式生成、向量检索 |
 | **数据一致性** | Outbox + Canal + Kafka 事件驱动、BitMap 幂等防重、Kafka 异常回放补偿 |
 
 ### 待实现（欢迎贡献）
