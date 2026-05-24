@@ -27,4 +27,8 @@ public interface FavoriteMapper {
                         @Param("folderId") long folderId);
 
     int countByUser(@Param("userId") long userId);
+
+    int countDistinctAuthors(@Param("userId") long userId);
+
+    int countMonthlyNew(@Param("userId") long userId);
 }

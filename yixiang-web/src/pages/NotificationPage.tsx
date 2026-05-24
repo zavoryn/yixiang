@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  CheckCircle, Settings, Bell, MessageSquare, ThumbsUp,
-  UserPlus, Star, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon, CheckCircle2,
+  CheckCircle, Bell, MessageSquare, ThumbsUp, Star,
+  UserPlus, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon, CheckCircle2,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useNotifications } from '@/features/notification/useNotifications';
 import { useUnreadCount } from '@/features/notification/useUnreadCount';
 import { notificationService } from '@/services/notificationService';
+import { settingsService } from '@/services/settingsService';
 import { recommendService } from '@/services/recommendService';
 import { relationService } from '@/services/relationService';
 import { useFollow } from '@/features/relation/useFollow';
@@ -22,6 +23,7 @@ import type { NotificationItem, NotificationType } from '@/types/notification';
 
 const TABS = [
   { key: undefined, label: '全部' },
+  { key: 'UNREAD' as const, label: '未读' },
   { key: 'COMMENT' as NotificationType, label: '评论' },
   { key: 'LIKE' as NotificationType, label: '点赞' },
   { key: 'FOLLOW' as NotificationType, label: '关注' },
@@ -71,7 +73,24 @@ export default function NotificationPage() {
     staleTime: 5 * 60 * 1000,
   });
   const { data: unread } = useUnreadCount();
-  const typeFilter = activeTab === '全部' ? undefined : (activeTab === '系统' ? 'SYSTEM' as NotificationType : activeTab as NotificationType);
+  const { data: overview } = useQuery({
+    queryKey: ['notifications', 'overview'],
+    queryFn: () => notificationService.overview(),
+    staleTime: 30 * 1000,
+  });
+  const { data: settings, refetch: refetchSettings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => settingsService.get(),
+    staleTime: 60 * 1000,
+  });
+  const patchSettings = useMutation({
+    mutationFn: (body: Parameters<typeof settingsService.patch>[0]) => settingsService.patch(body),
+    onSuccess: () => refetchSettings(),
+  });
+
+  const typeFilter = activeTab === '全部' ? undefined
+    : activeTab === '未读' ? undefined
+    : (activeTab === '系统' ? 'SYSTEM' as NotificationType : activeTab as NotificationType);
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useNotifications(typeFilter);
 
   const markAllRead = useMutation({
@@ -90,7 +109,8 @@ export default function NotificationPage() {
     },
   });
 
-  const notifications = data?.pages.flatMap((p) => p.items) ?? [];
+  const allNotifications = data?.pages.flatMap((p) => p.items) ?? [];
+  const notifications = activeTab === '未读' ? allNotifications.filter((n) => !n.isRead) : allNotifications;
 
   return (
     <PageShell>
@@ -118,7 +138,8 @@ export default function NotificationPage() {
             {/* Tabs */}
             <div className="flex gap-6 border-b border-gray-100 overflow-x-auto">
               {TABS.map((tab, idx) => {
-                const isAll = tab.key === undefined;
+                const isAll = tab.label === '全部';
+                const isUnread = tab.label === '未读';
                 return (
                   <button
                     key={idx}
@@ -130,6 +151,11 @@ export default function NotificationPage() {
                     {tab.label}
                     {isAll && unread?.unreadCount ? (
                       <span className="ml-1 text-red-500">({unread.unreadCount})</span>
+                    ) : null}
+                    {isUnread && unread?.unreadCount ? (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[11px] font-bold bg-red-500 text-white rounded-full leading-none">
+                        {unread.unreadCount > 99 ? '99+' : unread.unreadCount}
+                      </span>
                     ) : null}
                     {activeTab === tab.label && (
                       <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600 rounded-t-full" />
@@ -252,10 +278,10 @@ export default function NotificationPage() {
           <h3 className="font-bold text-lg mb-5">通知概览</h3>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { value: unread?.unreadCount ?? 0, label: '未读通知', icon: MessageSquare, color: 'text-blue-500 bg-blue-50' },
-              { value: notifications.filter((n) => n.type === 'COMMENT').length, label: '评论', icon: MessageSquare, color: 'text-purple-500 bg-purple-50' },
-              { value: notifications.filter((n) => n.type === 'LIKE').length, label: '点赞', icon: ThumbsUpIcon, color: 'text-red-500 bg-red-50' },
-              { value: notifications.filter((n) => n.type === 'FOLLOW').length, label: '关注', icon: UserPlusIcon, color: 'text-blue-500 bg-blue-50' },
+              { value: overview?.unread ?? unread?.unreadCount ?? 0, label: '未读通知', icon: MessageSquare, color: 'text-blue-500 bg-blue-50' },
+              { value: overview?.comment ?? 0, label: '评论', icon: MessageSquare, color: 'text-purple-500 bg-purple-50' },
+              { value: overview?.like ?? 0, label: '点赞', icon: ThumbsUpIcon, color: 'text-red-500 bg-red-50' },
+              { value: overview?.follow ?? 0, label: '关注', icon: UserPlusIcon, color: 'text-blue-500 bg-blue-50' },
             ].map((item) => (
               <div key={item.label} className="bg-gray-50 rounded-xl p-4 flex items-center justify-between border border-gray-100/50">
                 <div>
@@ -274,29 +300,39 @@ export default function NotificationPage() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-5">
             <h3 className="font-bold text-lg">通知设置</h3>
-            <button className="text-blue-600 text-sm hover:underline">管理</button>
           </div>
           <div className="space-y-5">
-            {[
-              { icon: MessageSquare, title: '评论', desc: '有人评论我的帖子或回复我的评论', checked: true, color: 'text-blue-500 bg-blue-50' },
-              { icon: ThumbsUpIcon, title: '点赞', desc: '有人点赞我的帖子或评论', checked: true, color: 'text-red-500 bg-red-50' },
-              { icon: UserPlusIcon, title: '关注', desc: '有人关注了我', checked: true, color: 'text-blue-500 bg-blue-50' },
-              { icon: Mail, title: '私信', desc: '收到新的私信消息', checked: true, color: 'text-green-500 bg-green-50' },
-              { icon: Info, title: '系统通知', desc: '系统公告、审核结果等', checked: true, color: 'text-purple-500 bg-purple-50' },
-            ].map((item) => (
-              <div key={item.title} className="flex items-center justify-between">
-                <div className="flex gap-3 items-center">
-                  <div className={`w-8 h-8 rounded-full ${item.color.split(' ')[1]} flex items-center justify-center shrink-0`}>
-                    <item.icon size={16} className={item.color.split(' ')[0]} />
+            {([
+              { icon: MessageSquare, title: '评论', pref: 'comment', desc: '有人评论我的帖子或回复我的评论', color: 'text-blue-500 bg-blue-50' },
+              { icon: ThumbsUpIcon, title: '点赞', pref: 'like', desc: '有人点赞我的帖子或评论', color: 'text-red-500 bg-red-50' },
+              { icon: UserPlusIcon, title: '关注', pref: 'follow', desc: '有人关注了我', color: 'text-blue-500 bg-blue-50' },
+              { icon: Mail, title: '私信', pref: 'dm', desc: '收到新的私信消息', color: 'text-green-500 bg-green-50' },
+              { icon: Info, title: '系统通知', pref: 'system', desc: '系统公告、审核结果等', color: 'text-purple-500 bg-purple-50' },
+            ] as const).map((item) => {
+              const checked = settings?.notificationPref?.[item.pref] !== false;
+              return (
+                <div key={item.title} className="flex items-center justify-between">
+                  <div className="flex gap-3 items-center">
+                    <div className={`w-8 h-8 rounded-full ${item.color.split(' ')[1]} flex items-center justify-center shrink-0`}>
+                      <item.icon size={16} className={item.color.split(' ')[0]} />
+                    </div>
+                    <div>
+                      <div className="text-[14px] font-medium text-gray-800">{item.title}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{item.desc}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-[14px] font-medium text-gray-800">{item.title}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{item.desc}</div>
-                  </div>
+                  <Toggle
+                    checked={checked}
+                    disabled={patchSettings.isPending}
+                    onChange={(val) =>
+                      patchSettings.mutate({
+                        notificationPref: { ...settings?.notificationPref, [item.pref]: val },
+                      })
+                    }
+                  />
                 </div>
-                <Toggle checked={item.checked} />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -335,12 +371,11 @@ export default function NotificationPage() {
   );
 }
 
-function Toggle({ checked: initial }: { checked: boolean }) {
-  const [checked, setChecked] = useState(initial);
+function Toggle({ checked, disabled, onChange }: { checked: boolean; disabled?: boolean; onChange: (val: boolean) => void }) {
   return (
     <div
-      onClick={() => setChecked(!checked)}
-      className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${checked ? 'bg-blue-500' : 'bg-gray-200'}`}
+      onClick={() => !disabled && onChange(!checked)}
+      className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors shrink-0 ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${checked ? 'bg-blue-500' : 'bg-gray-200'}`}
     >
       <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${checked ? 'translate-x-4' : ''}`} />
     </div>

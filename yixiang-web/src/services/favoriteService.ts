@@ -12,6 +12,12 @@ export interface FavoriteFolder {
   name: string;
 }
 
+export interface FavoriteStats {
+  total: number;
+  authorCount: number;
+  monthlyNew: number;
+}
+
 const BASE = '/api/v1/favorites';
 
 export const favoriteService = {
@@ -21,6 +27,8 @@ export const favoriteService = {
     if (folderId != null) params.set('folderId', String(folderId));
     return apiFetch<FavoritesResponse>(`${BASE}?${params.toString()}`);
   },
+
+  stats: () => apiFetch<FavoriteStats>(`${BASE}/stats`),
 
   listFolders: () => apiFetch<FavoriteFolder[]>(`${BASE}/folders`),
 

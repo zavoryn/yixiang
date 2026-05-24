@@ -2,6 +2,7 @@ package com.tongji.notification.service.impl;
 
 import com.tongji.notification.api.dto.NotificationDTO;
 import com.tongji.notification.api.dto.NotificationListResponse;
+import com.tongji.notification.api.dto.NotificationOverviewResponse;
 import com.tongji.notification.mapper.NotificationMapper;
 import com.tongji.notification.model.Notification;
 import com.tongji.notification.service.NotificationService;
@@ -65,6 +66,16 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public int unreadCount(long recipientId) {
         return mapper.countUnread(recipientId);
+    }
+
+    @Override
+    public NotificationOverviewResponse overview(long recipientId) {
+        int unread = mapper.countUnread(recipientId);
+        int comment = mapper.countByType(recipientId, "COMMENT");
+        int like = mapper.countByType(recipientId, "LIKE");
+        int follow = mapper.countByType(recipientId, "FOLLOW");
+        int system = mapper.countByType(recipientId, "SYSTEM");
+        return new NotificationOverviewResponse(unread, comment, like, follow, system);
     }
 
     @Override

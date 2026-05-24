@@ -7,6 +7,7 @@ import com.tongji.counter.favorite.FavoriteFolderDto;
 import com.tongji.counter.favorite.FavoriteFolderMapper;
 import com.tongji.counter.favorite.FavoriteMapper;
 import com.tongji.counter.favorite.FavoriteService;
+import com.tongji.counter.favorite.FavoriteStatsResponse;
 import com.tongji.counter.favorite.FavoritesResponse;
 import com.tongji.knowpost.api.dto.FeedItemResponse;
 import com.tongji.knowpost.mapper.KnowPostMapper;
@@ -77,6 +78,7 @@ public class FavoriteServiceImpl implements FavoriteService {
                     tags,
                     row.getAuthorAvatar(),
                     row.getAuthorNickname(),
+                    row.getAuthorId() != null ? String.valueOf(row.getAuthorId()) : null,
                     row.getAuthorTagJson(),
                     null, null, null,
                     null,
@@ -89,6 +91,14 @@ public class FavoriteServiceImpl implements FavoriteService {
 
         Long nextCursor = hasMore && !ids.isEmpty() ? ids.get(ids.size() - 1) : null;
         return new FavoritesResponse(items, nextCursor, hasMore);
+    }
+
+    @Override
+    public FavoriteStatsResponse stats(long userId) {
+        int total = mapper.countByUser(userId);
+        int authorCount = mapper.countDistinctAuthors(userId);
+        int monthlyNew = mapper.countMonthlyNew(userId);
+        return new FavoriteStatsResponse(total, authorCount, monthlyNew);
     }
 
     @Override

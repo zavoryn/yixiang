@@ -2,6 +2,7 @@ package com.tongji.notification.api;
 
 import com.tongji.auth.token.JwtService;
 import com.tongji.notification.api.dto.NotificationListResponse;
+import com.tongji.notification.api.dto.NotificationOverviewResponse;
 import com.tongji.notification.service.NotificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,6 +37,12 @@ public class NotificationController {
     public Map<String, Integer> unreadCount(@AuthenticationPrincipal Jwt jwt) {
         long uid = jwtService.extractUserId(jwt);
         return Map.of("unreadCount", notificationService.unreadCount(uid));
+    }
+
+    @GetMapping("/overview")
+    public NotificationOverviewResponse overview(@AuthenticationPrincipal Jwt jwt) {
+        long uid = jwtService.extractUserId(jwt);
+        return notificationService.overview(uid);
     }
 
     @PutMapping("/read-all")

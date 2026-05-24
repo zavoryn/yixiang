@@ -7,6 +7,8 @@ public interface FavoriteService {
     void remove(long userId, long postId);
     FavoritesResponse list(long userId, Long cursor, int size, Long folderId);
 
+    FavoriteStatsResponse stats(long userId);
+
     long createFolder(long userId, String name);
     List<FavoriteFolderDto> listFolders(long userId);
     void deleteFolder(long userId, long folderId);

@@ -3,6 +3,14 @@ import type { NotificationListResponse, UnreadCountResponse } from '@/types/noti
 
 const BASE = '/api/v1/notifications';
 
+export interface NotificationOverview {
+  unread: number;
+  comment: number;
+  like: number;
+  follow: number;
+  system: number;
+}
+
 export const notificationService = {
   list: (params: { type?: string; cursor?: number; size?: number } = {}) => {
     const query = new URLSearchParams();
@@ -14,6 +22,9 @@ export const notificationService = {
 
   unreadCount: () =>
     apiFetch<UnreadCountResponse>(`${BASE}/unread-count`),
+
+  overview: () =>
+    apiFetch<NotificationOverview>(`${BASE}/overview`),
 
   streamPath: () => `${BASE}/stream`,
 

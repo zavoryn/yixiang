@@ -17,6 +17,8 @@ public interface NotificationMapper {
 
     int countUnread(@Param("recipientId") long recipientId);
 
+    int countByType(@Param("recipientId") long recipientId, @Param("type") String type);
+
     int markAllRead(@Param("recipientId") long recipientId);
 
     int markOneRead(@Param("id") long id, @Param("recipientId") long recipientId);

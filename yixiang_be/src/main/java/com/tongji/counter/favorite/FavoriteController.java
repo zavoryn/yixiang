@@ -35,6 +35,12 @@ public class FavoriteController {
         return favoriteService.list(uid, cursor, Math.min(size, 50), folderId);
     }
 
+    @GetMapping("/stats")
+    public FavoriteStatsResponse stats(@AuthenticationPrincipal Jwt jwt) {
+        long uid = jwtService.extractUserId(jwt);
+        return favoriteService.stats(uid);
+    }
+
     @GetMapping("/folders")
     public List<FavoriteFolderDto> listFolders(@AuthenticationPrincipal Jwt jwt) {
         long uid = jwtService.extractUserId(jwt);

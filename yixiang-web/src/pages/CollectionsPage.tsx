@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, ChevronDown, MoreHorizontal, ThumbsUp, MessageCircle,
-  Star, ChevronRight, LayoutGrid, List as ListIcon, FolderOpen, Plus, Trash2,
+  Star, ChevronRight, LayoutGrid, List as ListIcon, FolderOpen, Plus, Trash2, BookOpen, Users,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { favoriteService } from '@/services/favoriteService';
@@ -28,6 +28,12 @@ export default function CollectionsPage() {
   const { data: folders = [], refetch: refetchFolders } = useQuery({
     queryKey: ['favorites', 'folders'],
     queryFn: () => favoriteService.listFolders(),
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['favorites', 'stats'],
+    queryFn: () => favoriteService.stats(),
+    staleTime: 60 * 1000,
   });
 
   const createFolderMutation = useMutation({
@@ -310,9 +316,20 @@ export default function CollectionsPage() {
               查看详情 <ChevronRight size={14} />
             </button>
           </div>
-          <div className="bg-gray-50 rounded-xl py-3 px-4 border border-gray-100 flex items-center justify-between">
-            <div className="text-[13px] text-gray-500 font-medium">收藏内容</div>
-            <div className="font-bold text-[20px] text-gray-900 leading-none">{posts.length}</div>
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { icon: Star, label: '总收藏', value: stats?.total ?? posts.length, color: 'text-yellow-500 bg-yellow-50' },
+              { icon: Users, label: '收藏作者', value: stats?.authorCount ?? 0, color: 'text-blue-500 bg-blue-50' },
+              { icon: BookOpen, label: '本月新增', value: stats?.monthlyNew ?? 0, color: 'text-green-500 bg-green-50' },
+            ].map((item) => (
+              <div key={item.label} className="bg-gray-50 rounded-xl p-3 flex flex-col items-center gap-2 border border-gray-100/50">
+                <div className={`w-7 h-7 rounded-full ${item.color.split(' ')[1]} flex items-center justify-center`}>
+                  <item.icon size={14} className={item.color.split(' ')[0]} />
+                </div>
+                <div className="font-bold text-[18px] text-gray-900 leading-none">{item.value}</div>
+                <div className="text-[11px] text-gray-500 text-center">{item.label}</div>
+              </div>
+            ))}
           </div>
         </div>
 

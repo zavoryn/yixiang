@@ -36,4 +36,17 @@
         SELECT COUNT(*) FROM user_favorites WHERE user_id = #{userId}
     </select>
 
+    <select id="countDistinctAuthors" resultType="int">
+        SELECT COUNT(DISTINCT kp.creator_id)
+        FROM user_favorites uf
+        JOIN know_posts kp ON kp.id = uf.post_id
+        WHERE uf.user_id = #{userId}
+    </select>
+
+    <select id="countMonthlyNew" resultType="int">
+        SELECT COUNT(*) FROM user_favorites
+        WHERE user_id = #{userId}
+          AND created_at >= NOW() - INTERVAL 30 DAY
+    </select>
+
 </mapper>

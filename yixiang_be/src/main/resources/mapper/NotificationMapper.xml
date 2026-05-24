@@ -24,6 +24,11 @@
         WHERE recipient_id = #{recipientId} AND is_read = 0
     </select>
 
+    <select id="countByType" resultType="int">
+        SELECT COUNT(1) FROM notifications
+        WHERE recipient_id = #{recipientId} AND type = #{type}
+    </select>
+
     <update id="markAllRead">
         UPDATE notifications SET is_read = 1
         WHERE recipient_id = #{recipientId} AND is_read = 0
