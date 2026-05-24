@@ -12,6 +12,35 @@
 
 一个面向投资者的知识分享社区平台，支持发帖互动、关注关系链、全文搜索与 AI 智能问答。后端采用 Spring Boot + 事件驱动架构，重点解决高频互动场景下的性能与数据一致性问题。
 
+## 页面预览
+
+<table>
+  <tr>
+    <td align="center"><b>首页信息流</b></td>
+    <td align="center"><b>登录</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/homepage.png" width="480" alt="首页信息流"/></td>
+    <td><img src="screenshots/login.png" width="480" alt="登录页"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>帖子详情</b></td>
+    <td align="center"><b>圈子广场</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/post-detail.png" width="480" alt="帖子详情页"/></td>
+    <td><img src="screenshots/circle-square.png" width="480" alt="圈子广场"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>个人主页</b></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/profile.png" width="480" alt="个人主页"/></td>
+    <td></td>
+  </tr>
+</table>
+
 ## 功能概览
 
 ### 已实现
