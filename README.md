@@ -10,7 +10,9 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
 
-颐享是一个知识分享社区平台，围绕「圈子」构建垂直兴趣社区，支持图文发帖、评论互动、关注关系链、全文搜索与 AI 智能问答。后端基于 Spring Boot 事件驱动架构，通过 Outbox + Canal + Kafka 保证分布式数据一致性；Redis + Lua 实现高性能互动计数；三级缓存 + 热点检测应对高并发信息流读取。
+> 围绕「圈子」构建垂直兴趣社区，用 AI 让知识流动更高效。
+
+颐享是一个开源知识分享社区平台。用户可以创建或加入感兴趣的圈子，发布图文内容，与其他成员互动交流。平台集成了 AI 智能问答，支持对圈子内文档进行 RAG 检索与流式对话。后端基于 Spring Boot 事件驱动架构，通过 Outbox + Canal + Kafka 保证分布式数据一致性；Redis + Lua 实现高性能互动计数；三级缓存 + 热点检测应对高并发信息流读取。
 
 ## 页面预览
 
@@ -18,12 +20,18 @@
   <tr>
     <td align="center"><b>首页信息流</b></td>
     <td align="center"><b>登录</b></td>
-    <td align="center"><b>圈子广场</b></td>
   </tr>
   <tr>
-    <td><img src="screenshots/homepage.png" width="320" alt="首页信息流"/></td>
-    <td><img src="screenshots/login.png" width="320" alt="登录页"/></td>
-    <td><img src="screenshots/circle-square.png" width="320" alt="圈子广场"/></td>
+    <td><img src="screenshots/homepage.png" width="480" alt="首页信息流"/></td>
+    <td><img src="screenshots/login.png" width="480" alt="登录页"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>圈子广场</b></td>
+    <td align="center"><b>发布帖子</b></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/circle-square.png" width="480" alt="圈子广场"/></td>
+    <td><img src="screenshots/create-post.png" width="480" alt="发布帖子"/></td>
   </tr>
 </table>
 
