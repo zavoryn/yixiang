@@ -37,6 +37,21 @@ describe('apiFetch', () => {
     await expect(apiFetch('/missing')).rejects.toBeInstanceOf(ApiError);
   });
 
+  it('does not force json content type for FormData uploads', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+    const form = new FormData();
+    form.append('file', new Blob(['hello'], { type: 'text/plain' }), 'hello.txt');
+
+    await apiFetch<{ ok: boolean }>('/upload', { method: 'POST', body: form });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect((init as RequestInit).headers).not.toMatchObject({
+      'Content-Type': 'application/json',
+    });
+  });
+
   it('refreshes token on 401 and retries once', async () => {
     fetchMock
       .mockResolvedValueOnce(new Response('', { status: 401 }))

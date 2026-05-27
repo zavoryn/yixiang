@@ -67,8 +67,9 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   const url = buildApiUrl(path);
 
   const buildHeaders = (): Record<string, string> => {
+    const isFormData = typeof FormData !== 'undefined' && rest.body instanceof FormData;
     const h: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(headers as Record<string, string>),
     };
     if (!skipAuth && tokenStore) {
