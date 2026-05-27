@@ -27,4 +27,6 @@ export const messageService = {
 
   unreadCount: (): Promise<{ unreadCount: number }> =>
     apiFetch<{ unreadCount: number }>(`${BASE}/unread-count`),
+
+  streamPath: () => `${BASE}/stream`,
 };

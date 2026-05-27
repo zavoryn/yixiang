@@ -9,6 +9,7 @@ import java.util.List;
 @Mapper
 public interface DmMessageMapper {
     void insert(DmMessage msg);
+    DmMessage findById(@Param("id") long id);
     List<DmMessage> listByConv(@Param("convId") long convId,
                                @Param("beforeId") Long beforeId,
                                @Param("size") int size);

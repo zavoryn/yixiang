@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
 import { formatRelativeTime } from '@/lib/formatters';
+import { buildSseUrl } from '@/lib/sse';
+import { useAuth } from '@/context/AuthContext';
 import type { ConversationDto, MessageDto } from '@/types/message';
 
 export default function MessagesPage() {
@@ -16,6 +18,7 @@ export default function MessagesPage() {
   const [activeConvId, setActiveConvId] = useState<number | null>(
     convIdParam ? Number(convIdParam) : null
   );
+  const { tokens } = useAuth();
 
   const queryClient = useQueryClient();
 
@@ -25,8 +28,29 @@ export default function MessagesPage() {
   const { data: conversations = [], isLoading: convsLoading } = useQuery<ConversationDto[]>({
     queryKey: ['messages', 'conversations'],
     queryFn: () => messageService.listConversations(),
-    refetchInterval: 10_000,
+    refetchInterval: 60_000,
   });
+
+  useEffect(() => {
+    if (!tokens?.accessToken) return;
+    const es = new EventSource(buildSseUrl(messageService.streamPath(), tokens?.accessToken ?? null));
+    es.addEventListener('message', (event) => {
+      let convId: number | null = null;
+      try {
+        const payload = JSON.parse((event as MessageEvent).data) as { convId?: number };
+        convId = typeof payload.convId === 'number' ? payload.convId : null;
+      } catch {
+        convId = null;
+      }
+      queryClient.invalidateQueries({ queryKey: ['messages', 'conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['messages', 'unread'] });
+      if (convId != null) {
+        queryClient.invalidateQueries({ queryKey: ['messages', convId] });
+      }
+    });
+    es.onerror = () => undefined;
+    return () => es.close();
+  }, [queryClient, tokens?.accessToken]);
 
   const startConvMutation = useMutation({
     mutationFn: (targetId: number) => messageService.startConversation(targetId),
@@ -159,7 +183,7 @@ function MessageThread({ conv, convId, onBack }: { conv: ConversationDto; convId
   const { data: messages = [], isLoading } = useQuery<MessageDto[]>({
     queryKey: ['messages', convId],
     queryFn: () => messageService.listMessages(convId),
-    refetchInterval: 5_000,
+    refetchInterval: 60_000,
   });
 
   const sendMutation = useMutation({

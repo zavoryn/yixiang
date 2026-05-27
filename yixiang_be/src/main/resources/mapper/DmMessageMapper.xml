@@ -17,13 +17,23 @@
         VALUES (#{id}, #{convId}, #{senderId}, #{body})
     </insert>
 
+    <select id="findById" resultMap="MsgMap">
+        SELECT * FROM dm_messages WHERE id = #{id}
+    </select>
+
     <select id="listByConv" resultMap="MsgMap">
         SELECT * FROM dm_messages
         WHERE conv_id = #{convId}
         <if test="beforeId != null">
-          AND id &lt; #{beforeId}
+          AND (
+            sent_at &lt; (SELECT m.sent_at FROM dm_messages m WHERE m.id = #{beforeId})
+            OR (
+              sent_at = (SELECT m.sent_at FROM dm_messages m WHERE m.id = #{beforeId})
+              AND id &lt; #{beforeId}
+            )
+          )
         </if>
-        ORDER BY id DESC
+        ORDER BY sent_at DESC, id DESC
         LIMIT #{size}
     </select>
 

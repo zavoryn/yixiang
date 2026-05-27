@@ -9,12 +9,17 @@ import com.tongji.dm.mapper.DmConversationMapper;
 import com.tongji.dm.mapper.DmMessageMapper;
 import com.tongji.dm.model.DmConversation;
 import com.tongji.dm.model.DmMessage;
+import com.tongji.dm.sse.DmSseEmitterRegistry;
 import com.tongji.user.domain.User;
 import com.tongji.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -31,6 +36,7 @@ public class MessageController {
     private final DmMessageMapper msgMapper;
     private final JwtService jwtService;
     private final UserMapper userMapper;
+    private final DmSseEmitterRegistry sseRegistry;
 
     @GetMapping("/conversations")
     public List<ConversationDto> listConversations(@AuthenticationPrincipal Jwt jwt,
@@ -60,6 +66,7 @@ public class MessageController {
     }
 
     @PostMapping("/conversations")
+    @Transactional
     public ConversationDto startConversation(@RequestParam long targetUserId,
                                               @AuthenticationPrincipal Jwt jwt) {
         long uid = jwtService.extractUserId(jwt);
@@ -72,7 +79,13 @@ public class MessageController {
         conv.setId(ThreadLocalRandom.current().nextLong(Long.MAX_VALUE));
         conv.setUser1Id(Math.min(uid, targetUserId));
         conv.setUser2Id(Math.max(uid, targetUserId));
-        convMapper.insert(conv);
+        try {
+            convMapper.insert(conv);
+        } catch (DuplicateKeyException e) {
+            DmConversation raced = convMapper.findBetween(uid, targetUserId);
+            if (raced != null) return toDto(raced, uid);
+            throw e;
+        }
         return toDto(convMapper.findById(conv.getId()), uid);
     }
 
@@ -101,6 +114,7 @@ public class MessageController {
     }
 
     @PostMapping("/conversations/{convId}/messages")
+    @Transactional
     public MessageDto sendMessage(@PathVariable long convId,
                                    @RequestBody Map<String, String> body,
                                    @AuthenticationPrincipal Jwt jwt) {
@@ -125,8 +139,24 @@ public class MessageController {
         convMapper.incrementUnread(convId, recipientId, conv.getUser1Id());
 
         User sender = userMapper.findById(uid);
-        DmMessage saved = msgMapper.listByConv(convId, null, 1).stream()
-                .filter(m -> m.getId().equals(msg.getId())).findFirst().orElse(msg);
+        DmMessage saved = msgMapper.findById(msg.getId());
+        if (saved == null) saved = msg;
+        DmMessage committed = saved;
+        Runnable notifyClients = () -> {
+            String payload = "{\"convId\":" + convId + ",\"messageId\":" + committed.getId() + "}";
+            sseRegistry.sendMessageEvent(recipientId, payload);
+            sseRegistry.sendMessageEvent(uid, payload);
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notifyClients.run();
+                }
+            });
+        } else {
+            notifyClients.run();
+        }
         return new MessageDto(msg.getId(), convId, uid,
                 sender != null ? sender.getNickname() : "?",
                 sender != null ? sender.getAvatar() : null,
