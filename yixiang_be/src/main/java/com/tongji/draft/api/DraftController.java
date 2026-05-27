@@ -54,8 +54,8 @@ public class DraftController {
     }
 
     @PostMapping("/{id}/publish")
-    public Map<String, Long> publish(@PathVariable long id, @AuthenticationPrincipal Jwt jwt) {
+    public Map<String, String> publish(@PathVariable long id, @AuthenticationPrincipal Jwt jwt) {
         long postId = draftService.publish(jwtService.extractUserId(jwt), id);
-        return Map.of("postId", postId);
+        return Map.of("postId", String.valueOf(postId));
     }
 }

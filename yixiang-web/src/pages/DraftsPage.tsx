@@ -18,7 +18,7 @@ export default function DraftsPage() {
   });
 
   const remove = useMutation({
-    mutationFn: (id: number) => draftService.remove(id),
+    mutationFn: (id: string) => draftService.remove(id),
     onSuccess: () => {
       toast.success('草稿已删除');
       qc.invalidateQueries({ queryKey: ['drafts'] });
@@ -27,7 +27,7 @@ export default function DraftsPage() {
   });
 
   const publish = useMutation({
-    mutationFn: (id: number) => draftService.publish(id),
+    mutationFn: (id: string) => draftService.publish(id),
     onSuccess: (resp) => {
       toast.success('发布成功');
       qc.invalidateQueries({ queryKey: ['drafts'] });

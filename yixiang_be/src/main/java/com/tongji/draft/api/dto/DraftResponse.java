@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 public record DraftResponse(
-        Long id,
+        String id,
         String title,
         String contentUrl,
         List<String> tags,
