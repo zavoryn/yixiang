@@ -1,6 +1,7 @@
 package com.tongji.counter.favorite.impl;
 
 import com.tongji.counter.favorite.FavoriteMapper;
+import com.tongji.counter.favorite.FavoriteFolderMapper;
 import com.tongji.knowpost.mapper.KnowPostMapper;
 import org.junit.jupiter.api.Test;
 
@@ -13,8 +14,9 @@ import static org.mockito.Mockito.*;
 class FavoriteServiceImplTest {
 
     private final FavoriteMapper mapper = mock(FavoriteMapper.class);
+    private final FavoriteFolderMapper folderMapper = mock(FavoriteFolderMapper.class);
     private final KnowPostMapper knowPostMapper = mock(KnowPostMapper.class);
-    private final FavoriteServiceImpl service = new FavoriteServiceImpl(mapper, knowPostMapper);
+    private final FavoriteServiceImpl service = new FavoriteServiceImpl(mapper, folderMapper, knowPostMapper);
 
     @Test
     void addInsertsRow() {
@@ -30,8 +32,8 @@ class FavoriteServiceImplTest {
 
     @Test
     void listReturnsEmptyWhenNoFavorites() {
-        when(mapper.listPostIds(anyLong(), any(), anyInt())).thenReturn(List.of());
-        var result = service.list(1L, null, 20);
+        when(mapper.listPostIds(anyLong(), any(), anyInt(), any())).thenReturn(List.of());
+        var result = service.list(1L, null, 20, null);
         assertThat(result.items()).isEmpty();
         assertThat(result.hasMore()).isFalse();
         assertThat(result.nextCursor()).isNull();

@@ -89,7 +89,7 @@ public class FavoriteServiceImpl implements FavoriteService {
             ));
         }
 
-        Long nextCursor = hasMore && !ids.isEmpty() ? ids.get(ids.size() - 1) : null;
+        String nextCursor = hasMore && !ids.isEmpty() ? String.valueOf(ids.get(ids.size() - 1)) : null;
         return new FavoritesResponse(items, nextCursor, hasMore);
     }
 
@@ -116,7 +116,7 @@ public class FavoriteServiceImpl implements FavoriteService {
         List<FavoriteFolder> folders = folderMapper.listByUser(userId);
         List<FavoriteFolderDto> result = new ArrayList<>(folders.size());
         for (FavoriteFolder f : folders) {
-            result.add(new FavoriteFolderDto(f.getId(), f.getName()));
+            result.add(new FavoriteFolderDto(String.valueOf(f.getId()), f.getName()));
         }
         return result;
     }

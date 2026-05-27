@@ -5,6 +5,6 @@ import java.util.List;
 
 public record FavoritesResponse(
         List<FeedItemResponse> items,
-        Long nextCursor,
+        String nextCursor,
         boolean hasMore
 ) {}

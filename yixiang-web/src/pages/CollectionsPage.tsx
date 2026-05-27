@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 export default function CollectionsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeFolder, setActiveFolder] = useState<number | null>(null);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
@@ -49,7 +49,7 @@ export default function CollectionsPage() {
   });
 
   const deleteFolderMutation = useMutation({
-    mutationFn: (id: number) => favoriteService.deleteFolder(id),
+    mutationFn: (id: string) => favoriteService.deleteFolder(id),
     onSuccess: () => {
       toast.success('收藏夹已删除');
       if (activeFolder != null) setActiveFolder(null);

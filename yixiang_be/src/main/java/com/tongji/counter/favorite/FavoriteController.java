@@ -48,12 +48,12 @@ public class FavoriteController {
     }
 
     @PostMapping("/folders")
-    public Map<String, Long> createFolder(
+    public Map<String, String> createFolder(
             @RequestParam("name") @NotBlank @Size(max = 50) String name,
             @AuthenticationPrincipal Jwt jwt) {
         long uid = jwtService.extractUserId(jwt);
         long id = favoriteService.createFolder(uid, name);
-        return Map.of("id", id);
+        return Map.of("id", String.valueOf(id));
     }
 
     @DeleteMapping("/folders/{id}")
