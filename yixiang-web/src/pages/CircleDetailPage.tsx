@@ -49,7 +49,7 @@ export default function CircleDetailPage() {
   const { data: allPostsResp, isLoading: postsLoading } = useQuery({
     queryKey: ['circle', circleId, 'posts', 'all'],
     queryFn: () => circleService.posts(circleId!, false, undefined, 20),
-    enabled: circleId != null && (activeTab === '帖子' || activeTab === '问答'),
+    enabled: circleId != null && (activeTab === '帖子' || activeTab === '问答' || activeTab === '首页'),
   });
 
   const { data: membersResp, isLoading: membersLoading } = useQuery({

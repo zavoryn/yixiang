@@ -15,7 +15,7 @@ export const circleService = {
     const q = new URLSearchParams();
     if (params.category) q.set('category', params.category);
     if (params.keyword) q.set('keyword', params.keyword);
-    if (params.page != null) q.set('page', String(params.page));
+    if (params.page != null) q.set('page', String(params.page - 1));
     if (params.size) q.set('size', String(params.size));
     return apiFetch<CircleListResponse>(`${BASE}?${q.toString()}`);
   },

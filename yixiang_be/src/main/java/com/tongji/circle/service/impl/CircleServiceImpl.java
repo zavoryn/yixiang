@@ -221,6 +221,13 @@ public class CircleServiceImpl implements CircleService {
     }
 
     @Override
+    public boolean canManage(long userId, long circleId) {
+        CircleMember m = memberMapper.findByCircleAndUser(circleId, userId);
+        return m != null && "ACTIVE".equals(m.getStatus()) &&
+                ("OWNER".equals(m.getRole()) || "ADMIN".equals(m.getRole()));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public CircleMemberListResponse listMembers(long circleId, int page, int size) {
         requireCircle(circleId);

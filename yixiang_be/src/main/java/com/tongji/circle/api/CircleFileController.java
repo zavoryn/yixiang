@@ -95,7 +95,7 @@ public class CircleFileController {
         }
         // Only uploader or circle owner/admin can delete
         boolean isUploader = file.getUploaderId() == uid;
-        boolean isAdmin = circleService.isMember(uid, circleId); // simplified: member check
+        boolean isAdmin = circleService.canManage(uid, circleId);
         if (!isUploader && !isAdmin) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
