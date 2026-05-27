@@ -3,6 +3,9 @@ package com.tongji.counter.event;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tongji.counter.schema.CounterKeys;
 import com.tongji.counter.schema.CounterSchema;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -13,6 +16,8 @@ import org.springframework.stereotype.Service;
 import java.util.Map;
 import java.util.Set;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 计数事件聚合与刷写消费者。
@@ -56,6 +61,7 @@ public class CounterAggregationConsumer {
         try {
             // 将增量持久化到 Redis Hash
             redis.opsForHash().increment(aggKey, field, evt.getDelta());
+            redis.opsForSet().add(CounterKeys.aggIndexKey(), aggKey);
             // 成功后提交位点，绑定“已持久化”语义
             ack.acknowledge();
         } catch (Exception ex) {
@@ -69,15 +75,18 @@ public class CounterAggregationConsumer {
      */
     @Scheduled(fixedDelay = 1000L)
     public void flush() {
-        // 简化实现：扫描所有聚合桶键（生产建议使用索引集合替代 KEYS）
-        Set<String> keys = redis.keys("agg:" + CounterSchema.SCHEMA_ID + ":*");
-        if (keys.isEmpty()) {
+        Set<String> keys = redis.opsForSet().members(CounterKeys.aggIndexKey());
+        if (keys == null || keys.isEmpty()) {
+            keys = scanAggKeys();
+        }
+        if (keys == null || keys.isEmpty()) {
             return;
         }
 
         for (String aggKey : keys) {
             Map<Object, Object> entries = redis.opsForHash().entries(aggKey);
             if (entries.isEmpty()) {
+                redis.opsForSet().remove(CounterKeys.aggIndexKey(), aggKey);
                 continue;
             }
             // 解析 etype/eid 以定位 SDS key
@@ -124,8 +133,23 @@ public class CounterAggregationConsumer {
             Long size = redis.opsForHash().size(aggKey);
             if (size == 0L) {
                 redis.delete(aggKey);
+                redis.opsForSet().remove(CounterKeys.aggIndexKey(), aggKey);
             }
         }
+    }
+
+    private Set<String> scanAggKeys() {
+        String pattern = "agg:" + CounterSchema.SCHEMA_ID + ":*";
+        return redis.execute((RedisCallback<Set<String>>) connection -> {
+            Set<String> out = new LinkedHashSet<>();
+            try (Cursor<byte[]> cursor = connection.scan(
+                    ScanOptions.scanOptions().match(pattern).count(1000).build())) {
+                while (cursor.hasNext()) {
+                    out.add(new String(cursor.next(), StandardCharsets.UTF_8));
+                }
+            }
+            return out;
+        });
     }
 
     private static final String INCR_FIELD_LUA = """

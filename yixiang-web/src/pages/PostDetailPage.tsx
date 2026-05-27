@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
   ArrowLeft, ThumbsUp, MessageCircle, Share2, MoreHorizontal,
-  CheckCircle2, Star, Image as ImageIcon,
+  CheckCircle2, Star, Image as ImageIcon, ChevronDown,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { knowpostService } from '@/services/knowpostService';
@@ -52,7 +52,7 @@ export default function PostDetailPage() {
 
   const { data: commentsData } = useQuery({
     queryKey: ['comments', id],
-    queryFn: () => commentService.list(Number(id), undefined, 20),
+    queryFn: () => commentService.list(id!, undefined, 20),
     enabled: !!id,
   });
 
@@ -87,6 +87,13 @@ export default function PostDetailPage() {
   });
 
   const comments = commentsData?.items ?? [];
+
+  const authorIdNum = post?.authorId ? Number(post.authorId) : null;
+  const { data: authorCounters } = useQuery({
+    queryKey: ['relation', 'counters', authorIdNum],
+    queryFn: () => relationService.counters(authorIdNum!),
+    enabled: authorIdNum != null && Number.isFinite(authorIdNum) && authorIdNum > 0,
+  });
 
   const askQuestion = () => {
     const q = question.trim();
@@ -143,10 +150,13 @@ export default function PostDetailPage() {
       rightRail={<PostRightRail post={post} />}
     >
       <div className="px-6 py-4">
-        {/* Back button */}
-        <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-black mb-4">
-          <ArrowLeft size={18} className="mr-1" /> 返回
-        </button>
+        {/* Back button + title */}
+        <div className="flex items-center relative mb-4">
+          <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-black absolute left-0">
+            <ArrowLeft size={18} className="mr-1" /> 返回
+          </button>
+          <h1 className="text-lg font-bold w-full text-center">帖子详情</h1>
+        </div>
 
         {/* Post article */}
         <article className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -158,14 +168,16 @@ export default function PostDetailPage() {
                 className="w-12 h-12 rounded-full"
               />
               <div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-wrap">
                   <span className="font-bold text-base">{post.authorNickname}</span>
                   <CheckCircle2 size={16} className="text-blue-500 fill-blue-500" />
+                  {post.authorId && <AuthorFollowInlineBadge authorId={post.authorId} />}
                 </div>
                 <div className="text-xs text-gray-400 mt-0.5">
                   {[
                     (() => { try { const a = JSON.parse(post.authorTagJson ?? '[]'); return Array.isArray(a) && a[0] ? a[0] : null; } catch { return null; } })(),
                     post.publishTime ? formatRelativeTime(post.publishTime) : null,
+                    authorCounters?.followers ? `粉丝 ${formatCount(authorCounters.followers)}` : null,
                   ].filter(Boolean).join(' · ')}
                 </div>
               </div>
@@ -237,6 +249,8 @@ export default function PostDetailPage() {
           </div>
         </article>
 
+        <PinnedQA comments={comments} post={post} />
+
         <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
           <h3 className="font-bold text-gray-800 mb-4">AI 帖子问答</h3>
           <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg p-2">
@@ -279,6 +293,8 @@ export default function PostDetailPage() {
                 placeholder="写下你的评论..."
                 className="flex-1 bg-transparent border-none focus:outline-none text-sm px-2"
               />
+              <button className="text-gray-400 hover:text-gray-600 text-xl leading-none px-1">☺</button>
+              <button className="text-gray-400 hover:text-gray-600"><ImageIcon size={20} /></button>
               <button
                 onClick={() => { if (commentText.trim()) submitComment.mutate(); }}
                 disabled={submitComment.isPending}
@@ -494,5 +510,92 @@ function PostRightRail({ post }: { post: KnowpostDetailResponse }) {
         </div>
       </div>
     </>
+  );
+}
+
+function PinnedQA({ comments, post }: { comments: CommentDTO[]; post: KnowpostDetailResponse }) {
+  const topComment = comments.find((c) => !c.parentId);
+
+  const { data: repliesData } = useQuery({
+    queryKey: ['comment', 'replies', topComment?.id],
+    queryFn: () => commentService.replies(topComment!.id, undefined, 10),
+    enabled: !!topComment?.id && topComment.replyCount > 0,
+  });
+
+  if (!topComment) return null;
+
+  const authorReply = post.authorId
+    ? (repliesData?.items ?? []).find((c) => String(c.userId) === post.authorId)
+    : undefined;
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
+      <h3 className="font-bold text-gray-800 mb-4">置顶问答</h3>
+      <div className="flex gap-3 relative">
+        {authorReply && (
+          <div className="absolute left-[19px] top-10 bottom-8 w-px bg-gray-300" />
+        )}
+        <div className="flex-1">
+          {/* Question */}
+          <div className="flex items-center gap-2 mb-1">
+            <img
+              src={topComment.avatar || `https://i.pravatar.cc/150?u=${topComment.userId}`}
+              className="w-9 h-9 rounded-full z-10 bg-white"
+            />
+            <span className="text-sm font-medium text-gray-700">
+              {topComment.nickname || `用户${topComment.userId}`}
+            </span>
+            <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+              提问
+            </span>
+            <span className="text-xs text-gray-400 ml-auto">
+              {formatRelativeTime(topComment.createdAt)}
+            </span>
+          </div>
+          <p className="text-[15px] text-gray-800 ml-11 mb-4 font-medium">{topComment.content}</p>
+
+          {/* Author reply */}
+          {authorReply && (
+            <div className="flex items-start gap-2 mb-2">
+              <img
+                src={post.authorAvatar || `https://i.pravatar.cc/150?u=${post.authorId}`}
+                className="w-9 h-9 rounded-full z-10 bg-white"
+              />
+              <div className="flex-1 mt-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium text-gray-700">{post.authorNickname}</span>
+                  <span className="text-xs text-gray-500">(作者)</span>
+                </div>
+                <p className="text-sm text-gray-600 mb-2">{authorReply.content}</p>
+              </div>
+            </div>
+          )}
+
+          {topComment.replyCount > 0 && (
+            <button className="text-blue-500 text-sm hover:underline flex items-center gap-0.5">
+              展开更多回复 ({topComment.replyCount}条) <ChevronDown size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthorFollowInlineBadge({ authorId }: { authorId: string }) {
+  const { isAuthenticated } = useAuth();
+  const uid = Number(authorId);
+  const { data: status } = useQuery({
+    queryKey: ['relation', 'status', uid],
+    queryFn: () => relationService.status(uid),
+    enabled: isAuthenticated && Number.isFinite(uid) && uid > 0,
+  });
+  if (!isAuthenticated || !status) return null;
+  return (
+    <span className={`text-xs px-1.5 py-0.5 rounded ml-1 ${
+      status.following ? 'bg-gray-100 text-gray-500' : 'bg-blue-50 text-blue-500'
+    }`}>
+      {status.following ? '已关注' : '关注'}
+    </span>
   );
 }

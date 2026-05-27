@@ -8,6 +8,8 @@ import com.tongji.counter.event.CounterEvent;
 import com.tongji.counter.event.CounterEventProducer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
@@ -122,6 +124,7 @@ public class CounterServiceImpl implements CounterService {
         boolean ok = changed == 1L;
         if (ok) {
             int delta = add ? 1 : -1;
+            redis.opsForSet().add(CounterKeys.bitmapIndexKey(metric, etype, eid), bmKey);
             // 产出计数事件（异步聚合），分区按实体维度保证同实体事件顺序
             eventProducer.publish(CounterEvent.of(etype, eid, metric, idx, uid, delta));
             // 本地事件：触发缓存失效/旁路更新等快速路径
@@ -148,18 +151,12 @@ public class CounterServiceImpl implements CounterService {
             log.info("计数结构不存在，需要重建");
             // 限流与指数退避：避免在热点实体上触发重建风暴
             if (inBackoff(entityType, entityId)) {
-                for (String m : metrics) {
-                    result.put(m, 0L);
-                }
-                return result;
+                return retryReadOrZeros(sdsKey, metrics, expectedLen);
             }
 
             if (!allowedByRateLimiter(entityType, entityId)) {
                 escalateBackoff(entityType, entityId);
-                for (String m : metrics) {
-                    result.put(m, 0L);
-                }
-                return result;
+                return retryReadOrZeros(sdsKey, metrics, expectedLen);
             }
 
             String lockKey = String.format("lock:sds-rebuild:%s:%s", entityType, entityId);
@@ -172,10 +169,7 @@ public class CounterServiceImpl implements CounterService {
                 locked = lock.tryLock(0L, TimeUnit.MILLISECONDS);
                 if (!locked) {
                     escalateBackoff(entityType, entityId);
-                    for (String m : metrics) {
-                        result.put(m, 0L);
-                    }
-                    return result;
+                    return retryReadOrZeros(sdsKey, metrics, expectedLen);
                 }
                 // 依据位图分片统计真实计数（仅由持锁者执行重建）
                 byte[] newSds = new byte[expectedLen];
@@ -414,17 +408,19 @@ public class CounterServiceImpl implements CounterService {
 
     /**
      * 基于位图分片进行管道化 BITCOUNT 汇总，用于按事实重建计数。
-     * 说明：当前使用 KEYS 枚举分片（生产建议维护索引集合），结果按分片 BITCOUNT 求和。
+     * 优先读取分片索引集合，兼容旧数据时才使用 SCAN 渐进回填。
      */
     private long bitCountShardsPipelined(String metric, String etype, String eid) {
-        String pattern = String.format("bm:%s:%s:%s:*", metric, etype, eid);
-        // 生产环境建议以索引集合替代 KEYS
-        Set<String> keys = redis.keys(pattern); 
-        if (keys.isEmpty()) return 0L;
+        Set<String> keys = redis.opsForSet().members(CounterKeys.bitmapIndexKey(metric, etype, eid));
+        if (keys == null || keys.isEmpty()) {
+            keys = scanBitmapKeys(metric, etype, eid);
+        }
+        if (keys == null || keys.isEmpty()) return 0L;
+        Set<String> bitmapKeys = keys;
 
         // 管道批量 BITCOUNT 汇总
         List<Object> res = redis.executePipelined((RedisCallback<Object>) connection -> {
-            for (String k : keys) {
+            for (String k : bitmapKeys) {
                 connection.stringCommands().bitCount(k.getBytes(StandardCharsets.UTF_8));
             }
             return null;
@@ -437,6 +433,50 @@ public class CounterServiceImpl implements CounterService {
             }
         }
         return sum;
+    }
+
+    private Map<String, Long> retryReadOrZeros(String sdsKey, List<String> metrics, int expectedLen) {
+        try {
+            Thread.sleep(25L);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        byte[] raw = getRaw(sdsKey);
+        return raw != null && raw.length == expectedLen ? readCounts(raw, metrics) : zeroCounts(metrics);
+    }
+
+    private Map<String, Long> readCounts(byte[] raw, List<String> metrics) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        for (String m : metrics) {
+            Integer idx = CounterSchema.NAME_TO_IDX.get(m);
+            if (idx == null) {
+                continue;
+            }
+            result.put(m, readInt32BE(raw, idx * CounterSchema.FIELD_SIZE));
+        }
+        return result;
+    }
+
+    private Map<String, Long> zeroCounts(List<String> metrics) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        for (String m : metrics) {
+            result.put(m, 0L);
+        }
+        return result;
+    }
+
+    private Set<String> scanBitmapKeys(String metric, String etype, String eid) {
+        String pattern = String.format("bm:%s:%s:%s:*", metric, etype, eid);
+        return redis.execute((RedisCallback<Set<String>>) connection -> {
+            Set<String> out = new LinkedHashSet<>();
+            try (Cursor<byte[]> cursor = connection.scan(
+                    ScanOptions.scanOptions().match(pattern).count(1000).build())) {
+                while (cursor.hasNext()) {
+                    out.add(new String(cursor.next(), StandardCharsets.UTF_8));
+                }
+            }
+            return out;
+        });
     }
 
     @Override

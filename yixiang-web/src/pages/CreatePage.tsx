@@ -23,7 +23,7 @@ export default function CreatePage() {
   const qc = useQueryClient();
   const { isAuthenticated } = useAuth();
   const draftIdParam = searchParams.get('draftId');
-  const editingDraftId = draftIdParam && Number.isFinite(Number(draftIdParam)) ? Number(draftIdParam) : null;
+  const editingDraftId = draftIdParam && /^\d+$/.test(draftIdParam) ? draftIdParam : null;
   const [postType, setPostType] = useState<'public' | 'circle'>('public');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [title, setTitle] = useState('');

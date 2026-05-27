@@ -7,6 +7,7 @@ import com.tongji.counter.service.CounterService;
 import com.tongji.knowpost.api.dto.FeedPageResponse;
 import com.tongji.knowpost.mapper.KnowPostMapper;
 import com.tongji.knowpost.model.KnowPostFeedRow;
+import com.tongji.relation.mapper.RelationMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ class KnowPostFeedServiceImplLikedTest {
     @Mock Cache<String, FeedPageResponse> feedPublicCache;
     @Mock Cache<String, FeedPageResponse> feedMineCache;
     @Mock HotKeyDetector hotKey;
+    @Mock RelationMapper relationMapper;
 
     @Test
     void getLikedFeed_empty_whenNoActivity() {
@@ -45,7 +47,7 @@ class KnowPostFeedServiceImplLikedTest {
 
         KnowPostFeedServiceImpl service = new KnowPostFeedServiceImpl(
                 mapper, redis, new ObjectMapper(), counterService, recentLikersService,
-                activityMapper, feedPublicCache, feedMineCache, hotKey);
+                activityMapper, feedPublicCache, feedMineCache, hotKey, relationMapper);
 
         FeedPageResponse resp = service.getLikedFeed(1L, null, 1, 20);
         assertThat(resp.items()).isEmpty();
@@ -69,7 +71,7 @@ class KnowPostFeedServiceImplLikedTest {
 
         KnowPostFeedServiceImpl service = new KnowPostFeedServiceImpl(
                 mapper, redis, new ObjectMapper(), counterService, recentLikersService,
-                activityMapper, feedPublicCache, feedMineCache, hotKey);
+                activityMapper, feedPublicCache, feedMineCache, hotKey, relationMapper);
 
         FeedPageResponse resp = service.getLikedFeed(1L, null, 1, 20);
 

@@ -116,6 +116,25 @@ export default function HomePage() {
                 page={page}
               />
             ))}
+            <div className="bg-white rounded-b-2xl border-t border-gray-50 px-6 py-4 flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                上一页
+              </Button>
+              <span className="text-sm text-gray-500">第 {page} 页</span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!data?.hasMore}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                下一页
+              </Button>
+            </div>
           </div>
         )}
       </section>
@@ -126,7 +145,7 @@ export default function HomePage() {
 function FeedCard({ post, isLast, onClick, activeTab, page }: { post: FeedItem; isLast: boolean; onClick: () => void; activeTab: string; page: number }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   const likeMut = useMutation({
     mutationFn: () => post.liked ? knowpostService.unlike(post.id) : knowpostService.like(post.id),
@@ -211,13 +230,15 @@ function FeedCard({ post, isLast, onClick, activeTab, page }: { post: FeedItem; 
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
-            disabled={followMut.isPending}
-            onClick={(e) => { e.stopPropagation(); handleAction(() => followMut.mutate()); }}
-          >
-            {post.isFollowingAuthor ? '已关注' : '关注'}
-          </button>
+          {!(user && post.authorId && String(user.id) === String(post.authorId)) && (
+            <button
+              className="border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 px-4 py-1.5 rounded-full text-xs font-medium transition-colors disabled:opacity-50"
+              disabled={followMut.isPending}
+              onClick={(e) => { e.stopPropagation(); handleAction(() => followMut.mutate()); }}
+            >
+              {post.isFollowingAuthor ? '已关注' : '关注'}
+            </button>
+          )}
           <button className="text-gray-400 hover:text-gray-600"><MoreHorizontal size={20} /></button>
         </div>
       </div>

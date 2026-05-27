@@ -15,7 +15,7 @@ export const commentService = {
     });
   },
 
-  list(postId: number, cursor?: string, size = 20): Promise<CommentListResponse> {
+  list(postId: string | number, cursor?: string, size = 20): Promise<CommentListResponse> {
     const params = new URLSearchParams({ postId: String(postId), size: String(size) });
     if (cursor) params.set("cursor", cursor);
     return apiFetch(`/api/v1/comment/list?${params}`);

@@ -26,9 +26,45 @@
 
     <insert id="insertDraft" parameterType="com.tongji.knowpost.model.KnowPost">
         INSERT INTO know_posts (
-            id, creator_id, status, type, visible, is_top, create_time, update_time
+            id,
+            creator_id,
+            title,
+            description,
+            content_url,
+            content_object_key,
+            content_etag,
+            content_size,
+            content_sha256,
+            tags,
+            circle_id,
+            img_urls,
+            status,
+            type,
+            visible,
+            is_top,
+            is_featured,
+            create_time,
+            update_time
         ) VALUES (
-            #{id}, #{creatorId}, #{status}, #{type}, #{visible}, #{isTop}, #{createTime}, #{updateTime}
+            #{id},
+            #{creatorId},
+            #{title},
+            #{description},
+            #{contentUrl},
+            #{contentObjectKey},
+            #{contentEtag},
+            #{contentSize},
+            #{contentSha256},
+            #{tags},
+            #{circleId},
+            #{imgUrls},
+            #{status},
+            #{type},
+            #{visible},
+            #{isTop},
+            #{isFeatured},
+            #{createTime},
+            #{updateTime}
         )
     </insert>
 
@@ -139,6 +175,7 @@
             p.img_urls AS imgUrls,
             u.avatar AS authorAvatar,
             u.nickname AS authorNickname,
+            u.id AS authorId,
             u.tags_json AS authorTagJson,
             p.publish_time AS publishTime,
             p.is_top AS isTop
@@ -159,6 +196,7 @@
             p.img_urls AS imgUrls,
             u.avatar AS authorAvatar,
             u.nickname AS authorNickname,
+            u.id AS authorId,
             u.tags_json AS authorTagJson,
             p.publish_time AS publishTime,
             p.is_top AS isTop
@@ -179,6 +217,7 @@
             p.img_urls AS imgUrls,
             u.avatar AS authorAvatar,
             u.nickname AS authorNickname,
+            u.id AS authorId,
             u.tags_json AS authorTagJson,
             p.publish_time AS publishTime,
             p.is_top AS isTop
@@ -234,6 +273,7 @@
             p.img_urls AS imgUrls,
             u.avatar AS authorAvatar,
             u.nickname AS authorNickname,
+            u.id AS authorId,
             u.tags_json AS authorTagJson,
             p.publish_time AS publishTime,
             p.is_top AS isTop
@@ -254,6 +294,7 @@
             p.img_urls AS imgUrls,
             u.avatar AS authorAvatar,
             u.nickname AS authorNickname,
+            u.id AS authorId,
             u.tags_json AS authorTagJson,
             p.publish_time AS publishTime,
             p.is_top AS isTop

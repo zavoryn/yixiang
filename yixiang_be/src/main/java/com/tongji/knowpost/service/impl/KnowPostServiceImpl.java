@@ -100,6 +100,7 @@ public class KnowPostServiceImpl implements KnowPostService {
                 .type("image_text")
                 .visible("public")
                 .isTop(false)
+                .isFeatured(false)
                 .createTime(now)
                 .updateTime(now)
                 .build();
@@ -169,14 +170,8 @@ public class KnowPostServiceImpl implements KnowPostService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "草稿不存在或无权限");
         }
 
-        // 元数据变更后写入 Outbox 事件，驱动搜索索引更新
-        try {
-            long outId = idGen.nextId();
-            String payload = objectMapper.writeValueAsString(Map.of("entity", "knowpost", "op", "upsert", "id", id));
-            outboxMapper.insert(outId, "knowpost", id, "KnowPostMetadataUpdated", payload);
-        } catch (Exception e) {
-            log.warn("Outbox event after metadata update failed, post {}: {}", id, e.getMessage());
-        }
+        // 元数据变更后写入 Outbox 事件，驱动搜索索引更新；失败必须回滚业务写入，避免索引永久不一致。
+        writeKnowPostOutbox(id, "KnowPostMetadataUpdated", "upsert");
 
         invalidateCache(id);
     }
@@ -195,14 +190,8 @@ public class KnowPostServiceImpl implements KnowPostService {
             userCounterService.incrementPosts(creatorId, 1);
         } catch (Exception ignored) {}
 
-        // 写入 Outbox 事件，驱动搜索索引增量更新
-        try {
-            long outId = idGen.nextId();
-            String payload = objectMapper.writeValueAsString(Map.of("entity", "knowpost", "op", "upsert", "id", id));
-            outboxMapper.insert(outId, "knowpost", id, "KnowPostPublished", payload);
-        } catch (Exception e) {
-            log.warn("Outbox event after publish failed, post {}: {}", id, e.getMessage());
-        }
+        // 写入 Outbox 事件，驱动搜索索引增量更新；失败必须回滚发布。
+        writeKnowPostOutbox(id, "KnowPostPublished", "upsert");
 
         // 发布成功后触发一次预索引，减少首次问答冷启动
         try {
@@ -225,6 +214,7 @@ public class KnowPostServiceImpl implements KnowPostService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "草稿不存在或无权限");
         }
 
+        writeKnowPostOutbox(id, "KnowPostMetadataUpdated", "upsert");
         invalidateCache(id);
     }
 
@@ -245,6 +235,7 @@ public class KnowPostServiceImpl implements KnowPostService {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "草稿不存在或无权限");
         }
 
+        writeKnowPostOutbox(id, "KnowPostMetadataUpdated", "upsert");
         invalidateCache(id);
     }
 
@@ -255,18 +246,20 @@ public class KnowPostServiceImpl implements KnowPostService {
     public void delete(long creatorId, long id) {
         invalidateCache(id);
 
+        KnowPost existing = mapper.findById(id);
         int updated = mapper.softDelete(id, creatorId);
         if (updated == 0) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "草稿不存在或无权限");
         }
 
-        // 写入 Outbox 事件，驱动搜索索引软删
-        try {
-            long outId = idGen.nextId();
-            String payload = objectMapper.writeValueAsString(Map.of("entity", "knowpost", "op", "delete", "id", id));
-            outboxMapper.insert(outId, "knowpost", id, "KnowPostDeleted", payload);
-        } catch (Exception e) {
-            log.warn("Outbox event after delete failed, post {}: {}", id, e.getMessage());
+        // 写入 Outbox 事件，驱动搜索索引软删；失败必须回滚删除标记。
+        writeKnowPostOutbox(id, "KnowPostDeleted", "delete");
+        if (existing != null && "published".equalsIgnoreCase(existing.getStatus())) {
+            try {
+                userCounterService.incrementPosts(creatorId, -1);
+            } catch (Exception e) {
+                log.warn("Failed to decrement user post counter, userId={}, postId={}: {}", creatorId, id, e.getMessage());
+            }
         }
 
         invalidateCache(id);
@@ -278,7 +271,7 @@ public class KnowPostServiceImpl implements KnowPostService {
         }
 
         return switch (visible) {
-            case "public", "followers", "school", "private", "unlisted" -> true;
+            case "public", "followers", "school", "private", "unlisted", "circle" -> true;
             default -> false;
         };
     }
@@ -580,6 +573,18 @@ public class KnowPostServiceImpl implements KnowPostService {
         redis.delete(pageKey);
 
         knowPostDetailCache.invalidate(pageKey);
+    }
+
+    private void writeKnowPostOutbox(long id, String eventType, String op) {
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of("entity", "knowpost", "op", op, "id", id));
+            int rows = outboxMapper.insert(idGen.nextId(), "knowpost", id, eventType, payload);
+            if (rows != 1) {
+                throw new IllegalStateException("Outbox insert affected " + rows + " rows");
+            }
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize knowpost outbox payload", e);
+        }
     }
 
     private List<String> parseStringArray(String json) {

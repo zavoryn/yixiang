@@ -9,6 +9,7 @@ import com.tongji.counter.service.CounterService;
 import com.tongji.knowpost.api.dto.FeedPageResponse;
 import com.tongji.knowpost.mapper.KnowPostMapper;
 import com.tongji.knowpost.model.KnowPostFeedRow;
+import com.tongji.relation.mapper.RelationMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -37,6 +38,7 @@ class KnowPostFeedServiceImplUserPostsTest {
     @Mock Cache<String, FeedPageResponse> feedPublicCache;
     @Mock Cache<String, FeedPageResponse> feedMineCache;
     @Mock HotKeyDetector hotKey;
+    @Mock RelationMapper relationMapper;
 
     @Test
     void getUserPublished_returnsPublicUserPostsWithViewerState() {
@@ -50,7 +52,7 @@ class KnowPostFeedServiceImplUserPostsTest {
 
         KnowPostFeedServiceImpl service = new KnowPostFeedServiceImpl(
                 mapper, redis, new ObjectMapper(), counterService, recentLikersService,
-                activityMapper, feedPublicCache, feedMineCache, hotKey);
+                activityMapper, feedPublicCache, feedMineCache, hotKey, relationMapper);
 
         FeedPageResponse resp = service.getUserPublished(2L, 1, 2, 9L);
 
