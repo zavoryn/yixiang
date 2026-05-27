@@ -19,15 +19,25 @@ export function useUnreadCount() {
   useEffect(() => {
     if (!isAuthenticated) return;
     const es = new EventSource(buildSseUrl(notificationService.streamPath(), tokens?.accessToken ?? null));
-    es.addEventListener('unread', () => {
+    const applyUnread = (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data) as { unreadCount?: number };
+        if (typeof payload.unreadCount === 'number') {
+          qc.setQueryData(['notifications', 'unread-count'], { unreadCount: payload.unreadCount });
+          return;
+        }
+      } catch {
+        /* fall back to refetch */
+      }
       qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+    };
+    es.addEventListener('unread', (event) => {
+      applyUnread(event as MessageEvent);
     });
-    es.onmessage = () => {
-      qc.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+    es.onmessage = (event) => {
+      applyUnread(event);
     };
-    es.onerror = () => {
-      es.close();
-    };
+    es.onerror = () => undefined;
     return () => es.close();
   }, [qc, isAuthenticated, tokens?.accessToken]);
 

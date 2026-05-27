@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckCircle, Bell, MessageSquare, ThumbsUp, Star,
-  UserPlus, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon, CheckCircle2,
+  UserPlus, BellRing, Mail, Info, ThumbsUpIcon, UserPlusIcon, CheckCircle2, Settings,
 } from 'lucide-react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useNotifications } from '@/features/notification/useNotifications';

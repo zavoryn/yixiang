@@ -135,6 +135,7 @@ public class SearchServiceImpl implements SearchService {
                     tagList,
                     authorAvatar,
                     authorNickname,
+                    null,
                     tagJson,
                     likeCount,
                     favoriteCount,

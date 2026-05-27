@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Canal→Kafka 桥接器。
@@ -86,6 +87,10 @@ public class CanalKafkaBridge implements SmartLifecycle {
      */
     @Override
     public void start() {
+        if (!enabled) {
+            log.info("Canal bridge disabled by canal.enabled=false");
+            return;
+        }
         if (running) {
             log.info("Canal bridge start skipped: running={} enabled={} host={} port={} dest={} filter={}", running, enabled, host, port, destination, filter);
             return;
@@ -114,6 +119,7 @@ public class CanalKafkaBridge implements SmartLifecycle {
                         } catch (InterruptedException ignored) {}
                         continue;
                     }
+                    boolean batchFailed = false;
                     for (CanalEntry.Entry entry : message.getEntries()) {
                         // 仅处理行级数据变更事件
                         if (entry.getEntryType() != CanalEntry.EntryType.ROWDATA) {
@@ -154,8 +160,16 @@ public class CanalKafkaBridge implements SmartLifecycle {
                         try {
                             // 序列化并发送到 Kafka 主题（canal-outbox）
                             String json = objectMapper.writeValueAsString(msgNode);
-                            kafka.send(OutboxTopics.CANAL_OUTBOX, json);
-                        } catch (Exception ignored) {}
+                            kafka.send(OutboxTopics.CANAL_OUTBOX, json).get(5, TimeUnit.SECONDS);
+                        } catch (Exception e) {
+                            log.error("Canal bridge failed to publish batch {}, rollback", batchId, e);
+                            connector.rollback(batchId);
+                            batchFailed = true;
+                            break;
+                        }
+                    }
+                    if (batchFailed) {
+                        continue;
                     }
                     // 批次确认（推进位点），避免消息重放
                     connector.ack(batchId);

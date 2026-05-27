@@ -75,8 +75,15 @@ public class TopicServiceImpl implements TopicService {
         if (hasMore) page = page.subList(0, effective);
 
         List<String> postIds = page.stream().map(p -> String.valueOf(p.getId())).toList();
-        Map<String, Map<String, Long>> countsBatch = postIds.isEmpty() ? Map.of()
-                : counterService.getCountsBatch("knowpost", postIds, METRICS);
+        // Use getCountsBatch first; fall back to individual getCounts (with rebuild) for any zero-count entries
+        Map<String, Map<String, Long>> countsMap = new java.util.HashMap<>(
+                postIds.isEmpty() ? Map.of() : counterService.getCountsBatch("knowpost", postIds, METRICS));
+        for (String pid : postIds) {
+            Map<String, Long> c = countsMap.get(pid);
+            if (c == null || METRICS.stream().allMatch(m -> c.getOrDefault(m, 0L) == 0L)) {
+                countsMap.put(pid, counterService.getCounts("knowpost", pid, METRICS));
+            }
+        }
 
         Set<Long> authorIds = page.stream().map(KnowPost::getCreatorId).collect(Collectors.toSet());
         Map<Long, UserBrief> authors = authorIds.isEmpty() ? Map.of() :
@@ -84,7 +91,7 @@ public class TopicServiceImpl implements TopicService {
                         .collect(Collectors.toMap(User::getId, UserBrief::from));
 
         List<HotPostResponse> items = page.stream().map(p -> {
-            Map<String, Long> c = countsBatch.getOrDefault(String.valueOf(p.getId()), Map.of());
+            Map<String, Long> c = countsMap.getOrDefault(String.valueOf(p.getId()), Map.of());
             return new HotPostResponse(
                     p.getId(), p.getTitle(), p.getDescription(), firstImage(p.getImgUrls()),
                     parseTags(p.getTags()),

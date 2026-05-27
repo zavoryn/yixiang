@@ -17,7 +17,7 @@ import { circleService } from '@/services/circleService';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatCount } from '@/lib/formatters';
+import { formatCount, formatRelativeTime } from '@/lib/formatters';
 import type { FeedItem } from '@/types/knowpost';
 import type { RelationCountersResponse } from '@/types/relation';
 import type { ProfileResponse } from '@/types/profile';
@@ -307,7 +307,7 @@ export default function ProfilePage() {
 
               {/* Pagination */}
               {(page > 1 || hasMore) && (
-                <div className="flex justify-center items-center gap-2 py-8">
+                <div className="flex justify-center items-center gap-2 py-8 pb-10">
                   {page > 1 && (
                     <button
                       className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 hover:text-blue-600 text-sm transition-colors"
@@ -316,7 +316,11 @@ export default function ProfilePage() {
                       上一页
                     </button>
                   )}
+                  {page > 2 && <PageButton active={false} onClick={() => setPage(1)}>1</PageButton>}
+                  {page > 3 && <span className="text-gray-400 px-1">…</span>}
+                  {page > 1 && <PageButton active={false} onClick={() => setPage(page - 1)}>{page - 1}</PageButton>}
                   <PageButton active onClick={() => {}}>{page}</PageButton>
+                  {hasMore && <PageButton active={false} onClick={() => setPage(page + 1)}>{page + 1}</PageButton>}
                   {hasMore && (
                     <button
                       className="px-3 py-1 border border-gray-200 text-gray-600 rounded hover:border-gray-300 hover:text-blue-600 text-sm transition-colors"
@@ -413,7 +417,9 @@ function PostItem({ post, onClick }: { post: FeedItem; onClick: () => void }) {
 
         <div className="flex items-center justify-between text-xs text-gray-400">
           <div className="flex items-center gap-3">
-            <span>{post.authorNickname}</span>
+            {post.publishTime && <span>{formatRelativeTime(post.publishTime)}</span>}
+            {post.commentCount != null && post.publishTime && <span>·</span>}
+            {post.commentCount != null && <span>{formatCount(post.commentCount)} 评论</span>}
           </div>
 
           <div className="flex items-center gap-4 text-gray-500">
@@ -500,65 +506,59 @@ function RightSidebar({
 
       {/* Recent visitors */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <h3 className="text-[16px] font-bold text-gray-900 mb-4">最近访客</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-[16px] font-bold text-gray-900">最近访客</h3>
+        </div>
         {recentVisitors.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-3">暂无访客记录</p>
         ) : (
-          <div className="grid grid-cols-5 gap-2">
-            {recentVisitors.slice(0, 10).map((v) => (
-              <div
-                key={v.id}
-                className="flex flex-col items-center gap-1 cursor-pointer group"
-                onClick={() => navigate(`/profile/${v.id}`)}
-              >
-                <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 relative">
-                  {v.avatar ? (
-                    <img src={v.avatar} alt={v.nickname} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm font-bold">
-                      {v.nickname.charAt(0)}
-                    </div>
-                  )}
-                  {v.verified && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 rounded-full flex items-center justify-center">
-                      <Shield size={8} className="text-white" />
-                    </div>
-                  )}
-                </div>
-                <span className="text-[10px] text-gray-500 truncate w-full text-center group-hover:text-blue-600 transition-colors">
-                  {v.nickname}
-                </span>
-              </div>
-            ))}
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex justify-center">
+              {recentVisitors.slice(0, 5).map((v, i) => (
+                <img
+                  key={v.id}
+                  src={v.avatar || `https://i.pravatar.cc/150?u=${v.id}`}
+                  alt={v.nickname}
+                  title={v.nickname}
+                  className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover cursor-pointer hover:-translate-y-1 transition-transform"
+                  style={{ marginLeft: i !== 0 ? '-12px' : 0, zIndex: 10 - i }}
+                  onClick={() => navigate(`/profile/${v.id}`)}
+                />
+              ))}
+            </div>
+            <span className="text-xs text-gray-500">等 {recentVisitors.length} 人来访</span>
           </div>
         )}
       </div>
 
       {/* Stats */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <h3 className="text-[16px] font-bold text-gray-900 mb-4">数据统计</h3>
-        <div className="space-y-3">
-          <StatsRow icon={<FileText size={15} className="text-blue-500" />} label="发布帖子" value={counters?.posts ?? 0} unit="篇" />
-          <StatsRow icon={<Heart size={15} className="text-red-400" />} label="获得点赞" value={counters?.likedPosts ?? 0} unit="次" />
-          <StatsRow icon={<Bookmark size={15} className="text-yellow-500" />} label="被收藏" value={counters?.favedPosts ?? 0} unit="次" />
-          <StatsRow icon={<Users size={15} className="text-green-500" />} label="粉丝数" value={counters?.followers ?? 0} unit="人" />
-          <StatsRow icon={<TrendingUp size={15} className="text-purple-500" />} label="关注数" value={counters?.followings ?? 0} unit="人" />
+        <div className="flex items-center gap-2 mb-4">
+          <h3 className="text-[16px] font-bold text-gray-900">数据统计</h3>
+          <span className="text-xs text-gray-400 font-normal">累计</span>
+        </div>
+        <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+          <ProfileStatCard label="发布帖子" value={counters?.posts ?? 0} />
+          <ProfileStatCard label="粉丝数" value={counters?.followers ?? 0} />
+          <ProfileStatCard label="获赞数" value={counters?.likedPosts ?? 0} />
+          <ProfileStatCard label="被收藏" value={counters?.favedPosts ?? 0} />
         </div>
       </div>
 
       {/* Badges */}
       <div className="bg-white p-5 rounded-2xl shadow-sm">
-        <h3 className="text-[16px] font-bold text-gray-900 mb-4">我的勋章</h3>
+        <h3 className="text-[16px] font-bold text-gray-900 mb-5">我的勋章</h3>
         {badges.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-3">继续发帖和互动，解锁更多成就</p>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-2">
             {badges.map((b) => (
-              <div key={b.id} className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-gray-50 border border-gray-100">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${b.color}`}>
-                  {b.icon}
+              <div key={b.id} className="flex flex-col items-center gap-2">
+                <div className={`w-[60px] h-[60px] rounded-xl flex items-center justify-center ${b.color} border-2 ${b.borderColor} shadow-sm relative overflow-hidden cursor-pointer hover:scale-105 transition-transform`}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent opacity-50" />
+                  <div className="relative z-10 drop-shadow-md">{b.icon}</div>
                 </div>
-                <span className="text-[11px] text-gray-600 text-center leading-tight">{b.name}</span>
+                <span className="text-xs text-gray-600 font-medium text-center leading-tight">{b.name}</span>
               </div>
             ))}
           </div>
@@ -606,40 +606,35 @@ function RightSidebar({
   );
 }
 
-type Badge = { id: string; name: string; icon: React.ReactNode; color: string };
+type Badge = { id: string; name: string; icon: React.ReactNode; color: string; borderColor: string };
 
 function computeBadges(counters?: RelationCountersResponse): Badge[] {
   const badges: Badge[] = [];
   if (!counters) return badges;
   if (counters.posts >= 1)
-    badges.push({ id: 'first_post', name: '初次发帖', icon: <FileText size={16} className="text-white" />, color: 'bg-blue-400' });
+    badges.push({ id: 'first_post', name: '初次发帖', icon: <FileText size={24} className="text-blue-50" />, color: 'bg-gradient-to-br from-blue-400 to-indigo-500', borderColor: 'border-blue-200' });
   if (counters.posts >= 10)
-    badges.push({ id: 'active_author', name: '活跃作者', icon: <Star size={16} className="text-white" />, color: 'bg-indigo-500' });
+    badges.push({ id: 'active_author', name: '活跃作者', icon: <Star size={24} className="text-yellow-50" />, color: 'bg-gradient-to-br from-yellow-400 to-amber-500', borderColor: 'border-yellow-200' });
   if (counters.posts >= 50)
-    badges.push({ id: 'prolific', name: '高产创作', icon: <Award size={16} className="text-white" />, color: 'bg-purple-500' });
+    badges.push({ id: 'prolific', name: '高产创作', icon: <Award size={24} className="text-orange-50" />, color: 'bg-gradient-to-br from-orange-400 to-red-500', borderColor: 'border-orange-200' });
   if (counters.likedPosts >= 10)
-    badges.push({ id: 'liked', name: '受众喜爱', icon: <Heart size={16} className="text-white" />, color: 'bg-red-400' });
+    badges.push({ id: 'liked', name: '受众喜爱', icon: <Heart size={24} className="text-red-50" />, color: 'bg-gradient-to-br from-red-400 to-pink-500', borderColor: 'border-red-200' });
   if (counters.likedPosts >= 100)
-    badges.push({ id: 'popular', name: '百赞达人', icon: <TrendingUp size={16} className="text-white" />, color: 'bg-orange-500' });
+    badges.push({ id: 'popular', name: '百赞达人', icon: <TrendingUp size={24} className="text-purple-50" />, color: 'bg-gradient-to-br from-purple-400 to-indigo-500', borderColor: 'border-purple-200' });
   if (counters.followers >= 10)
-    badges.push({ id: 'rising', name: '新晋达人', icon: <Users size={16} className="text-white" />, color: 'bg-green-500' });
+    badges.push({ id: 'rising', name: '新晋达人', icon: <Users size={24} className="text-green-50" />, color: 'bg-gradient-to-br from-emerald-400 to-green-600', borderColor: 'border-green-200' });
   if (counters.followers >= 100)
-    badges.push({ id: 'influencer', name: '意见领袖', icon: <Shield size={16} className="text-white" />, color: 'bg-yellow-500' });
+    badges.push({ id: 'influencer', name: '意见领袖', icon: <Shield size={24} className="text-blue-50" />, color: 'bg-gradient-to-br from-blue-500 to-cyan-500', borderColor: 'border-blue-200' });
   if (counters.favedPosts >= 10)
-    badges.push({ id: 'valued', name: '价值内容', icon: <Bookmark size={16} className="text-white" />, color: 'bg-teal-500' });
+    badges.push({ id: 'valued', name: '价值内容', icon: <Bookmark size={24} className="text-teal-50" />, color: 'bg-gradient-to-br from-teal-400 to-cyan-500', borderColor: 'border-teal-200' });
   return badges;
 }
 
-function StatsRow({ icon, label, value, unit }: { icon: React.ReactNode; label: string; value: number; unit: string }) {
+function ProfileStatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-[13px] text-gray-500">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <span className="text-[14px] font-semibold text-gray-800">
-        {value.toLocaleString()} <span className="text-gray-400 font-normal text-[12px]">{unit}</span>
-      </span>
+    <div className="flex flex-col">
+      <span className="text-xs text-gray-500 mb-1">{label}</span>
+      <span className="text-[22px] font-bold text-gray-900 leading-none">{formatCount(value)}</span>
     </div>
   );
 }

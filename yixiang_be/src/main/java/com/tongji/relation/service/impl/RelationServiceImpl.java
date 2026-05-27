@@ -92,11 +92,7 @@ public class RelationServiceImpl implements RelationService {
         int inserted = mapper.insertFollowing(id, fromUserId, toUserId, 1);
 
         if (inserted > 0) {
-            try {
-                Long outId = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
-                String payload = objectMapper.writeValueAsString(new RelationEvent("FollowCreated", fromUserId, toUserId, id));
-                outboxMapper.insert(outId, "following", id, "FollowCreated", payload);
-            } catch (Exception ignored) {}
+            writeOutbox("FollowCreated", id, new RelationEvent("FollowCreated", fromUserId, toUserId, id));
 
             return true;
         }
@@ -114,11 +110,7 @@ public class RelationServiceImpl implements RelationService {
     public boolean unfollow(long fromUserId, long toUserId) {
         int updated = mapper.cancelFollowing(fromUserId, toUserId);
         if (updated > 0) {
-            try {
-                Long outId = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
-                String payload = objectMapper.writeValueAsString(new RelationEvent("FollowCanceled", fromUserId, toUserId, null));
-                outboxMapper.insert(outId, "following", null, "FollowCanceled", payload);
-            } catch (Exception ignored) {}
+            writeOutbox("FollowCanceled", null, new RelationEvent("FollowCanceled", fromUserId, toUserId, null));
             return true;
         }
         return false;
@@ -406,6 +398,19 @@ public class RelationServiceImpl implements RelationService {
         List<Long> out = new ArrayList<>(set.size());
         for (String s : set) out.add(Long.valueOf(s));
         return out;
+    }
+
+    private void writeOutbox(String type, Long aggregateId, RelationEvent event) {
+        try {
+            Long outId = ThreadLocalRandom.current().nextLong(Long.MAX_VALUE);
+            String payload = objectMapper.writeValueAsString(event);
+            int rows = outboxMapper.insert(outId, "following", aggregateId, type, payload);
+            if (rows != 1) {
+                throw new IllegalStateException("Outbox insert affected " + rows + " rows");
+            }
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to persist relation outbox event " + type, e);
+        }
     }
 
     /**

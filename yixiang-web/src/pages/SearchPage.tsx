@@ -161,7 +161,7 @@ export default function SearchPage() {
                   </div>
                 ) : (
                   <div className="bg-white rounded-xl shadow-sm">
-                    {postItems.map((post) => <PostResultCard key={post.id} post={post} />)}
+                    {postItems.map((post) => <PostResultCard key={post.id} post={post} onClick={() => navigate(`/posts/${post.id}`)} />)}
                   </div>
                 )}
               </>
@@ -177,7 +177,7 @@ export default function SearchPage() {
                   </div>
                 ) : (
                   userItems.map((user) => (
-                    <UserResultCard key={user.id} user={user} onClick={() => navigate(`/profile/${user.id}`)} />
+                    <UserResultCard key={user.id} user={user} onClick={() => navigate(`/users/${user.id}`)} />
                   ))
                 )}
               </div>
@@ -194,7 +194,16 @@ export default function SearchPage() {
                 ) : (
                   topicItems.map((topic) => (
                     <TopicResultCard key={topic.tag} topic={topic}
-                      onClick={() => { setInputValue(topic.tag); setActiveTab(0); handleSearch(); }} />
+                      onClick={() => {
+                        setInputValue(topic.tag);
+                        setActiveTab(0);
+                        setSearchParams({ q: topic.tag });
+                        if (!searchHistory.includes(topic.tag)) {
+                          const updated = [topic.tag, ...searchHistory].slice(0, 10);
+                          setSearchHistory(updated);
+                          localStorage.setItem('search_history', JSON.stringify(updated));
+                        }
+                      }} />
                   ))
                 )}
               </div>
@@ -284,9 +293,12 @@ export default function SearchPage() {
   );
 }
 
-function PostResultCard({ post }: { post: FeedItem }) {
+function PostResultCard({ post, onClick }: { post: FeedItem; onClick: () => void }) {
   return (
-    <div className="p-6 flex gap-4 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0">
+    <div
+      className="p-6 flex gap-4 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0"
+      onClick={onClick}
+    >
       {post.coverImage && (
         <div className="w-[180px] h-[110px] shrink-0 overflow-hidden rounded-lg">
           <img src={post.coverImage} alt="" className="w-full h-full object-cover" />
